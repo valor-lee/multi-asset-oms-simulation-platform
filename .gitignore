@@ -1,0 +1,15 @@
+.gradle/
+build/
+out/
+
+**/build/
+
+node_modules/
+dist/
+.vite/
+
+.DS_Store
+*.log
+
+postgres-data/
+grafana-data/
