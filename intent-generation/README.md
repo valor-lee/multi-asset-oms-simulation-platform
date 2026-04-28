@@ -54,3 +54,24 @@
   - 영속화 전략이 확정되기 전까지 도메인 모델을 독립적으로 다루기 쉬움
 - 문서상의 DB 스키마와 영속화 방식은 이후 JPA 엔터티 설계 시 구체화 예정
 - 다음 슬라이스에서는 `pre-trade-risk` 입력 계약 연결 또는 manual input API 연결을 고려
+
+### 2026.04.28 slice
+
+수동 주문 의도 생성 흐름을 HTTP API로 열어, 기존 factory 검증 규칙을 실제 입력 진입점에서 사용할 수 있게 함
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/order-intents/manual` 엔드포인트 추가
+- 수동 입력 요청은 기존 `ManualOrderIntentRequest`를 사용하고, 생성 결과는 `OrderIntent`로 반환
+- `OrderIntentValidationException`을 `400 Bad Request` 응답으로 변환
+- manual API controller 테스트 추가
+
+#### 검증
+
+- 실행 테스트: `./gradlew :intent-generation:test`
+
+#### 다음 후보
+
+- `pre-trade-risk` 입력 계약 설계
+- 생성된 `OrderIntent`의 저장/조회 흐름 설계
+- 상태 전이 모델 추가
