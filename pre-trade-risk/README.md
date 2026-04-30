@@ -35,3 +35,24 @@
 - portfolio/account exposure 입력 모델 추가
 - 주문 금액 한도 검사
 - risk 결과를 intent 상태 전이와 연결
+
+### 2026.04.30 slice
+
+전체 승인/거절 결과뿐 아니라 규칙별 검사 결과를 함께 반환하도록 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `PreTradeRiskRuleCode` 추가
+  - `POSITIVE_QUANTITY`, `LIMIT_PRICE_REQUIRED`, `POSITIVE_LIMIT_PRICE`
+- `PreTradeRiskRuleStatus` 추가
+  - `PASSED`, `FAILED`, `SKIPPED`
+- `PreTradeRiskRuleCheckResult` 추가
+  - 규칙 코드, 상태, 메시지, 평가값, 기준값을 표현
+- `PreTradeRiskCheckResult`에 `ruleResults` 추가
+- `PreTradeRiskCheckService`가 개별 규칙 결과를 모아 전체 decision을 산출하도록 변경
+- 규칙별 결과 상태 테스트 추가
+
+#### 메모
+
+- 현재 규칙은 코드 기반으로 고정되어 있지만, 구조는 문서의 `RiskRule` / `RiskCheckResult` 설계로 확장 가능하게 둔다.
+- 하나 이상의 규칙이 `FAILED`이면 전체 decision은 `REJECTED`가 된다.

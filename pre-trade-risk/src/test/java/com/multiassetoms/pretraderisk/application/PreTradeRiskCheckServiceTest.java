@@ -5,13 +5,18 @@ import com.multiassetoms.intentgeneration.model.OrderType;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCheckResult;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCode;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleStatus;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -35,6 +40,12 @@ class PreTradeRiskCheckServiceTest {
         assertEquals(PreTradeRiskDecision.APPROVED, result.decision());
         assertEquals("approved", result.reason());
         assertEquals(Instant.parse("2026-04-29T00:00:00Z"), result.checkedAt());
+        assertEquals(PreTradeRiskRuleStatus.PASSED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.POSITIVE_QUANTITY).status());
+        assertEquals(PreTradeRiskRuleStatus.PASSED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.LIMIT_PRICE_REQUIRED).status());
+        assertEquals(PreTradeRiskRuleStatus.PASSED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.POSITIVE_LIMIT_PRICE).status());
     }
 
     @Test
@@ -51,6 +62,8 @@ class PreTradeRiskCheckServiceTest {
 
         assertEquals(PreTradeRiskDecision.REJECTED, result.decision());
         assertEquals("requestedQty must be greater than zero", result.reason());
+        assertEquals(PreTradeRiskRuleStatus.FAILED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.POSITIVE_QUANTITY).status());
     }
 
     @Test
@@ -67,5 +80,19 @@ class PreTradeRiskCheckServiceTest {
 
         assertEquals(PreTradeRiskDecision.REJECTED, result.decision());
         assertEquals("limitPrice is required for LIMIT orders", result.reason());
+        assertEquals(PreTradeRiskRuleStatus.FAILED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.LIMIT_PRICE_REQUIRED).status());
+        assertEquals(PreTradeRiskRuleStatus.SKIPPED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.POSITIVE_LIMIT_PRICE).status());
+    }
+
+    private Map<PreTradeRiskRuleCode, PreTradeRiskRuleCheckResult> ruleResultsByCode(
+            PreTradeRiskCheckResult result
+    ) {
+        return result.ruleResults().stream()
+                .collect(Collectors.toMap(
+                        PreTradeRiskRuleCheckResult::ruleCode,
+                        ruleResult -> ruleResult
+                ));
     }
 }
