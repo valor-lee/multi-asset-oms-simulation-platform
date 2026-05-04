@@ -75,3 +75,22 @@
 - `maxOrderQty`가 없으면 `MAX_ORDER_QUANTITY`는 `SKIPPED`
 - `requestedQty`가 `maxOrderQty` 이하이면 `PASSED`
 - `requestedQty`가 `maxOrderQty`를 초과하면 `FAILED`, 전체 decision은 `REJECTED`
+
+### 2026.05.04 slice
+
+주문 수량 한도에 이어 주문 금액 한도 규칙을 평가할 수 있도록 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `PreTradeRiskLimitContext`에 `maxOrderNotional` 추가
+- `MAX_ORDER_NOTIONAL` 규칙 추가
+- `requestedQty * limitPrice`로 주문 금액을 계산해 한도 이하/초과를 평가
+- 기존 `PreTradeRiskLimitContext(maxOrderQty)` 생성 경로는 유지
+- 주문 금액 한도 이하/초과/미설정 케이스 테스트 추가
+
+#### 현재 검사 규칙 추가
+
+- `maxOrderNotional`이 없으면 `MAX_ORDER_NOTIONAL`은 `SKIPPED`
+- 주문 금액을 계산할 수 없으면 `MAX_ORDER_NOTIONAL`은 `SKIPPED`
+- 주문 금액이 `maxOrderNotional` 이하이면 `PASSED`
+- 주문 금액이 `maxOrderNotional`을 초과하면 `FAILED`, 전체 decision은 `REJECTED`

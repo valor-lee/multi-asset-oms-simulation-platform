@@ -42,6 +42,7 @@ public class PreTradeRiskCheckService {
         ruleResults.add(checkLimitPriceRequired(command));
         ruleResults.add(checkPositiveLimitPrice(command));
         ruleResults.add(checkMaxOrderQuantity(command, limitContext));
+        ruleResults.add(checkMaxOrderNotional(command, limitContext));
 
         List<PreTradeRiskRuleCheckResult> failedResults = ruleResults.stream()
                 .filter(result -> result.status() == PreTradeRiskRuleStatus.FAILED)
@@ -155,6 +156,44 @@ public class PreTradeRiskCheckService {
         );
     }
 
+    private PreTradeRiskRuleCheckResult checkMaxOrderNotional(
+            PreTradeRiskCheckCommand command,
+            PreTradeRiskLimitContext limitContext
+    ) {
+        if (limitContext.maxOrderNotional() == null) {
+            return skipped(
+                    PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL,
+                    "maxOrderNotional limit is not configured",
+                    orderNotionalValue(command),
+                    null
+            );
+        }
+        if (command.requestedQty() == null || command.limitPrice() == null) {
+            return skipped(
+                    PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL,
+                    "order notional cannot be calculated",
+                    orderNotionalValue(command),
+                    valueOf(limitContext.maxOrderNotional())
+            );
+        }
+
+        BigDecimal orderNotional = command.requestedQty().multiply(command.limitPrice());
+        if (orderNotional.compareTo(limitContext.maxOrderNotional()) > 0) {
+            return failed(
+                    PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL,
+                    "order notional exceeds maxOrderNotional",
+                    valueOf(orderNotional),
+                    valueOf(limitContext.maxOrderNotional())
+            );
+        }
+        return passed(
+                PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL,
+                "order notional is within maxOrderNotional",
+                valueOf(orderNotional),
+                valueOf(limitContext.maxOrderNotional())
+        );
+    }
+
     private PreTradeRiskCheckResult approve(
             PreTradeRiskCheckCommand command,
             List<PreTradeRiskRuleCheckResult> ruleResults
@@ -229,5 +268,12 @@ public class PreTradeRiskCheckService {
 
     private String valueOf(Object value) {
         return value == null ? null : value.toString();
+    }
+
+    private String orderNotionalValue(PreTradeRiskCheckCommand command) {
+        if (command.requestedQty() == null || command.limitPrice() == null) {
+            return null;
+        }
+        return valueOf(command.requestedQty().multiply(command.limitPrice()));
     }
 }

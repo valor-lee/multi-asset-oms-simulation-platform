@@ -49,6 +49,8 @@ class PreTradeRiskCheckServiceTest {
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.POSITIVE_LIMIT_PRICE).status());
         assertEquals(PreTradeRiskRuleStatus.SKIPPED,
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_QUANTITY).status());
+        assertEquals(PreTradeRiskRuleStatus.SKIPPED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL).status());
     }
 
     @Test
@@ -128,6 +130,47 @@ class PreTradeRiskCheckServiceTest {
         assertEquals("requestedQty exceeds maxOrderQty", result.reason());
         assertEquals(PreTradeRiskRuleStatus.FAILED,
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_QUANTITY).status());
+    }
+
+    @Test
+    void passesWhenOrderNotionalIsWithinMaxOrderNotional() {
+        PreTradeRiskCheckResult result = service.check(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000006"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskLimitContext(null, new BigDecimal("550000"))
+        );
+
+        assertEquals(PreTradeRiskDecision.APPROVED, result.decision());
+        assertEquals(PreTradeRiskRuleStatus.PASSED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL).status());
+    }
+
+    @Test
+    void rejectsWhenOrderNotionalExceedsMaxOrderNotional() {
+        PreTradeRiskCheckResult result = service.check(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000007"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskLimitContext(null, new BigDecimal("549999"))
+        );
+
+        assertEquals(PreTradeRiskDecision.REJECTED, result.decision());
+        assertEquals("order notional exceeds maxOrderNotional", result.reason());
+        assertEquals(PreTradeRiskRuleStatus.FAILED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL).status());
     }
 
     private Map<PreTradeRiskRuleCode, PreTradeRiskRuleCheckResult> ruleResultsByCode(
