@@ -5,6 +5,7 @@ import com.multiassetoms.intentgeneration.model.OrderType;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskLimitContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCode;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleStatus;
@@ -46,6 +47,8 @@ class PreTradeRiskCheckServiceTest {
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.LIMIT_PRICE_REQUIRED).status());
         assertEquals(PreTradeRiskRuleStatus.PASSED,
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.POSITIVE_LIMIT_PRICE).status());
+        assertEquals(PreTradeRiskRuleStatus.SKIPPED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_QUANTITY).status());
     }
 
     @Test
@@ -84,6 +87,47 @@ class PreTradeRiskCheckServiceTest {
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.LIMIT_PRICE_REQUIRED).status());
         assertEquals(PreTradeRiskRuleStatus.SKIPPED,
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.POSITIVE_LIMIT_PRICE).status());
+    }
+
+    @Test
+    void passesWhenRequestedQuantityIsWithinMaxOrderQuantity() {
+        PreTradeRiskCheckResult result = service.check(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000004"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskLimitContext(new BigDecimal("10"))
+        );
+
+        assertEquals(PreTradeRiskDecision.APPROVED, result.decision());
+        assertEquals(PreTradeRiskRuleStatus.PASSED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_QUANTITY).status());
+    }
+
+    @Test
+    void rejectsWhenRequestedQuantityExceedsMaxOrderQuantity() {
+        PreTradeRiskCheckResult result = service.check(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000005"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("11"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskLimitContext(new BigDecimal("10"))
+        );
+
+        assertEquals(PreTradeRiskDecision.REJECTED, result.decision());
+        assertEquals("requestedQty exceeds maxOrderQty", result.reason());
+        assertEquals(PreTradeRiskRuleStatus.FAILED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_QUANTITY).status());
     }
 
     private Map<PreTradeRiskRuleCode, PreTradeRiskRuleCheckResult> ruleResultsByCode(

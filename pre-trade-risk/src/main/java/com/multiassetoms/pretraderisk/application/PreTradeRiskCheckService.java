@@ -4,6 +4,7 @@ import com.multiassetoms.intentgeneration.model.OrderType;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskLimitContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCode;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleStatus;
@@ -29,10 +30,18 @@ public class PreTradeRiskCheckService {
     }
 
     public PreTradeRiskCheckResult check(PreTradeRiskCheckCommand command) {
+        return check(command, PreTradeRiskLimitContext.empty());
+    }
+
+    public PreTradeRiskCheckResult check(
+            PreTradeRiskCheckCommand command,
+            PreTradeRiskLimitContext limitContext
+    ) {
         List<PreTradeRiskRuleCheckResult> ruleResults = new ArrayList<>();
         ruleResults.add(checkPositiveQuantity(command));
         ruleResults.add(checkLimitPriceRequired(command));
         ruleResults.add(checkPositiveLimitPrice(command));
+        ruleResults.add(checkMaxOrderQuantity(command, limitContext));
 
         List<PreTradeRiskRuleCheckResult> failedResults = ruleResults.stream()
                 .filter(result -> result.status() == PreTradeRiskRuleStatus.FAILED)
@@ -107,6 +116,42 @@ public class PreTradeRiskCheckService {
                 "limitPrice is greater than zero",
                 valueOf(command.limitPrice()),
                 "0"
+        );
+    }
+
+    private PreTradeRiskRuleCheckResult checkMaxOrderQuantity(
+            PreTradeRiskCheckCommand command,
+            PreTradeRiskLimitContext limitContext
+    ) {
+        if (limitContext.maxOrderQty() == null) {
+            return skipped(
+                    PreTradeRiskRuleCode.MAX_ORDER_QUANTITY,
+                    "maxOrderQty limit is not configured",
+                    valueOf(command.requestedQty()),
+                    null
+            );
+        }
+        if (command.requestedQty() == null) {
+            return skipped(
+                    PreTradeRiskRuleCode.MAX_ORDER_QUANTITY,
+                    "requestedQty is not present",
+                    null,
+                    valueOf(limitContext.maxOrderQty())
+            );
+        }
+        if (command.requestedQty().compareTo(limitContext.maxOrderQty()) > 0) {
+            return failed(
+                    PreTradeRiskRuleCode.MAX_ORDER_QUANTITY,
+                    "requestedQty exceeds maxOrderQty",
+                    valueOf(command.requestedQty()),
+                    valueOf(limitContext.maxOrderQty())
+            );
+        }
+        return passed(
+                PreTradeRiskRuleCode.MAX_ORDER_QUANTITY,
+                "requestedQty is within maxOrderQty",
+                valueOf(command.requestedQty()),
+                valueOf(limitContext.maxOrderQty())
         );
     }
 

@@ -56,3 +56,22 @@
 
 - 현재 규칙은 코드 기반으로 고정되어 있지만, 구조는 문서의 `RiskRule` / `RiskCheckResult` 설계로 확장 가능하게 둔다.
 - 하나 이상의 규칙이 `FAILED`이면 전체 decision은 `REJECTED`가 된다.
+
+### 2026.05.01 slice
+
+외부 한도값을 받아 주문 수량 한도 규칙을 평가할 수 있도록 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `PreTradeRiskLimitContext` 추가
+  - 현재는 `maxOrderQty`만 포함
+- `MAX_ORDER_QUANTITY` 규칙 추가
+- `PreTradeRiskCheckService.check(command, limitContext)` 추가
+- 기존 `check(command)`는 한도값이 없는 기본 컨텍스트로 동작하도록 유지
+- 최대 주문 수량 이하/초과/미설정 케이스 테스트 추가
+
+#### 현재 검사 규칙 추가
+
+- `maxOrderQty`가 없으면 `MAX_ORDER_QUANTITY`는 `SKIPPED`
+- `requestedQty`가 `maxOrderQty` 이하이면 `PASSED`
+- `requestedQty`가 `maxOrderQty`를 초과하면 `FAILED`, 전체 decision은 `REJECTED`
