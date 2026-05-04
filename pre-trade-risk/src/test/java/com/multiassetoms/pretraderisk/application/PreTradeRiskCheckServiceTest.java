@@ -51,6 +51,8 @@ class PreTradeRiskCheckServiceTest {
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_QUANTITY).status());
         assertEquals(PreTradeRiskRuleStatus.SKIPPED,
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL).status());
+        assertEquals(PreTradeRiskRuleStatus.SKIPPED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_POSITION_QUANTITY).status());
     }
 
     @Test
@@ -171,6 +173,57 @@ class PreTradeRiskCheckServiceTest {
         assertEquals("order notional exceeds maxOrderNotional", result.reason());
         assertEquals(PreTradeRiskRuleStatus.FAILED,
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL).status());
+    }
+
+    @Test
+    void passesWhenExpectedPositionIsWithinMaxPositionQuantity() {
+        PreTradeRiskCheckResult result = service.check(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000008"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskLimitContext(
+                        null,
+                        null,
+                        new BigDecimal("90"),
+                        new BigDecimal("100")
+                )
+        );
+
+        assertEquals(PreTradeRiskDecision.APPROVED, result.decision());
+        assertEquals(PreTradeRiskRuleStatus.PASSED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_POSITION_QUANTITY).status());
+    }
+
+    @Test
+    void rejectsWhenExpectedPositionExceedsMaxPositionQuantity() {
+        PreTradeRiskCheckResult result = service.check(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000009"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskLimitContext(
+                        null,
+                        null,
+                        new BigDecimal("91"),
+                        new BigDecimal("100")
+                )
+        );
+
+        assertEquals(PreTradeRiskDecision.REJECTED, result.decision());
+        assertEquals("expected position exceeds maxPositionQty", result.reason());
+        assertEquals(PreTradeRiskRuleStatus.FAILED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_POSITION_QUANTITY).status());
     }
 
     private Map<PreTradeRiskRuleCode, PreTradeRiskRuleCheckResult> ruleResultsByCode(

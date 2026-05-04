@@ -1,6 +1,7 @@
 package com.multiassetoms.pretraderisk.application;
 
 import com.multiassetoms.intentgeneration.model.OrderType;
+import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
@@ -43,6 +44,7 @@ public class PreTradeRiskCheckService {
         ruleResults.add(checkPositiveLimitPrice(command));
         ruleResults.add(checkMaxOrderQuantity(command, limitContext));
         ruleResults.add(checkMaxOrderNotional(command, limitContext));
+        ruleResults.add(checkMaxPositionQuantity(command, limitContext));
 
         List<PreTradeRiskRuleCheckResult> failedResults = ruleResults.stream()
                 .filter(result -> result.status() == PreTradeRiskRuleStatus.FAILED)
@@ -194,6 +196,44 @@ public class PreTradeRiskCheckService {
         );
     }
 
+    private PreTradeRiskRuleCheckResult checkMaxPositionQuantity(
+            PreTradeRiskCheckCommand command,
+            PreTradeRiskLimitContext limitContext
+    ) {
+        if (limitContext.maxPositionQty() == null) {
+            return skipped(
+                    PreTradeRiskRuleCode.MAX_POSITION_QUANTITY,
+                    "maxPositionQty limit is not configured",
+                    expectedPositionValue(command, limitContext),
+                    null
+            );
+        }
+        if (limitContext.currentPositionQty() == null || command.requestedQty() == null || command.side() == null) {
+            return skipped(
+                    PreTradeRiskRuleCode.MAX_POSITION_QUANTITY,
+                    "expected position cannot be calculated",
+                    expectedPositionValue(command, limitContext),
+                    valueOf(limitContext.maxPositionQty())
+            );
+        }
+
+        BigDecimal expectedPositionQty = expectedPositionQty(command, limitContext);
+        if (expectedPositionQty.abs().compareTo(limitContext.maxPositionQty()) > 0) {
+            return failed(
+                    PreTradeRiskRuleCode.MAX_POSITION_QUANTITY,
+                    "expected position exceeds maxPositionQty",
+                    valueOf(expectedPositionQty),
+                    valueOf(limitContext.maxPositionQty())
+            );
+        }
+        return passed(
+                PreTradeRiskRuleCode.MAX_POSITION_QUANTITY,
+                "expected position is within maxPositionQty",
+                valueOf(expectedPositionQty),
+                valueOf(limitContext.maxPositionQty())
+        );
+    }
+
     private PreTradeRiskCheckResult approve(
             PreTradeRiskCheckCommand command,
             List<PreTradeRiskRuleCheckResult> ruleResults
@@ -275,5 +315,25 @@ public class PreTradeRiskCheckService {
             return null;
         }
         return valueOf(command.requestedQty().multiply(command.limitPrice()));
+    }
+
+    private String expectedPositionValue(
+            PreTradeRiskCheckCommand command,
+            PreTradeRiskLimitContext limitContext
+    ) {
+        if (limitContext.currentPositionQty() == null || command.requestedQty() == null || command.side() == null) {
+            return null;
+        }
+        return valueOf(expectedPositionQty(command, limitContext));
+    }
+
+    private BigDecimal expectedPositionQty(
+            PreTradeRiskCheckCommand command,
+            PreTradeRiskLimitContext limitContext
+    ) {
+        if (command.side() == OrderSide.SELL) {
+            return limitContext.currentPositionQty().subtract(command.requestedQty());
+        }
+        return limitContext.currentPositionQty().add(command.requestedQty());
     }
 }

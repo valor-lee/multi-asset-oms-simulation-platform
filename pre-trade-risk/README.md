@@ -94,3 +94,22 @@
 - 주문 금액을 계산할 수 없으면 `MAX_ORDER_NOTIONAL`은 `SKIPPED`
 - 주문 금액이 `maxOrderNotional` 이하이면 `PASSED`
 - 주문 금액이 `maxOrderNotional`을 초과하면 `FAILED`, 전체 decision은 `REJECTED`
+
+### 2026.05.04 slice
+
+현재 보유 수량과 주문 수량을 합산해 예상 포지션 한도를 검사할 수 있도록 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `PreTradeRiskLimitContext`에 `currentPositionQty`, `maxPositionQty` 추가
+- `MAX_POSITION_QUANTITY` 규칙 추가
+- BUY 주문은 `currentPositionQty + requestedQty`, SELL 주문은 `currentPositionQty - requestedQty`로 예상 포지션 계산
+- 주문 반영 후 예상 포지션의 절대값을 `maxPositionQty`와 비교
+- 예상 포지션 한도 이하/초과/미설정 케이스 테스트 추가
+
+#### 현재 검사 규칙 추가
+
+- `maxPositionQty`가 없으면 `MAX_POSITION_QUANTITY`는 `SKIPPED`
+- 예상 포지션을 계산할 수 없으면 `MAX_POSITION_QUANTITY`는 `SKIPPED`
+- 예상 포지션 절대값이 `maxPositionQty` 이하이면 `PASSED`
+- 예상 포지션 절대값이 `maxPositionQty`를 초과하면 `FAILED`, 전체 decision은 `REJECTED`
