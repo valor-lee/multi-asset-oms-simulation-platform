@@ -5,7 +5,6 @@ import java.math.BigDecimal;
 public record PreTradeRiskLimitContext(
         BigDecimal maxOrderQty,
         BigDecimal maxOrderNotional,
-        BigDecimal currentPositionQty,
         BigDecimal maxPositionQty
 ) {
 
@@ -14,10 +13,10 @@ public record PreTradeRiskLimitContext(
     }
 
     public PreTradeRiskLimitContext(BigDecimal maxOrderQty, BigDecimal maxOrderNotional) {
-        this(maxOrderQty, maxOrderNotional, null, null);
+        this(maxOrderQty, maxOrderNotional, null);
     }
 
     public static PreTradeRiskLimitContext empty() {
-        return new PreTradeRiskLimitContext(null, null, null, null);
+        return new PreTradeRiskLimitContext(null, null, null);
     }
 }

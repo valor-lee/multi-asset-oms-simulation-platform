@@ -3,8 +3,10 @@ package com.multiassetoms.pretraderisk.application;
 import com.multiassetoms.intentgeneration.model.OrderType;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskExposureContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskLimitContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCode;
@@ -30,21 +32,31 @@ public class PreTradeRiskCheckService {
         this.clock = clock;
     }
 
-    public PreTradeRiskCheckResult check(PreTradeRiskCheckCommand command) {
-        return check(command, PreTradeRiskLimitContext.empty());
+    public PreTradeRiskCheckResult evaluateBasicRules(PreTradeRiskCheckCommand command) {
+        return evaluateWithContext(command, PreTradeRiskCheckContext.empty());
     }
 
-    public PreTradeRiskCheckResult check(
+    public PreTradeRiskCheckResult evaluateWithLimits(
             PreTradeRiskCheckCommand command,
             PreTradeRiskLimitContext limitContext
     ) {
+        return evaluateWithContext(command, new PreTradeRiskCheckContext(
+                limitContext,
+                PreTradeRiskExposureContext.empty()
+        ));
+    }
+
+    public PreTradeRiskCheckResult evaluateWithContext(
+            PreTradeRiskCheckCommand command,
+            PreTradeRiskCheckContext checkContext
+    ) {
         List<PreTradeRiskRuleCheckResult> ruleResults = new ArrayList<>();
-        ruleResults.add(checkPositiveQuantity(command));
-        ruleResults.add(checkLimitPriceRequired(command));
-        ruleResults.add(checkPositiveLimitPrice(command));
-        ruleResults.add(checkMaxOrderQuantity(command, limitContext));
-        ruleResults.add(checkMaxOrderNotional(command, limitContext));
-        ruleResults.add(checkMaxPositionQuantity(command, limitContext));
+        ruleResults.add(evaluatePositiveQuantityRule(command));
+        ruleResults.add(evaluateLimitPriceRequiredRule(command));
+        ruleResults.add(evaluatePositiveLimitPriceRule(command));
+        ruleResults.add(evaluateMaxOrderQuantityRule(command, checkContext.limitContext()));
+        ruleResults.add(evaluateMaxOrderNotionalRule(command, checkContext.limitContext()));
+        ruleResults.add(evaluateMaxPositionQuantityRule(command, checkContext));
 
         List<PreTradeRiskRuleCheckResult> failedResults = ruleResults.stream()
                 .filter(result -> result.status() == PreTradeRiskRuleStatus.FAILED)
@@ -55,7 +67,7 @@ public class PreTradeRiskCheckService {
         return approve(command, ruleResults);
     }
 
-    private PreTradeRiskRuleCheckResult checkPositiveQuantity(PreTradeRiskCheckCommand command) {
+    private PreTradeRiskRuleCheckResult evaluatePositiveQuantityRule(PreTradeRiskCheckCommand command) {
         if (command.requestedQty() == null || command.requestedQty().compareTo(BigDecimal.ZERO) <= 0) {
             return failed(
                     PreTradeRiskRuleCode.POSITIVE_QUANTITY,
@@ -72,7 +84,7 @@ public class PreTradeRiskCheckService {
         );
     }
 
-    private PreTradeRiskRuleCheckResult checkLimitPriceRequired(PreTradeRiskCheckCommand command) {
+    private PreTradeRiskRuleCheckResult evaluateLimitPriceRequiredRule(PreTradeRiskCheckCommand command) {
         if (command.orderType() == OrderType.LIMIT && command.limitPrice() == null) {
             return failed(
                     PreTradeRiskRuleCode.LIMIT_PRICE_REQUIRED,
@@ -97,7 +109,7 @@ public class PreTradeRiskCheckService {
         );
     }
 
-    private PreTradeRiskRuleCheckResult checkPositiveLimitPrice(PreTradeRiskCheckCommand command) {
+    private PreTradeRiskRuleCheckResult evaluatePositiveLimitPriceRule(PreTradeRiskCheckCommand command) {
         if (command.limitPrice() == null) {
             return skipped(
                     PreTradeRiskRuleCode.POSITIVE_LIMIT_PRICE,
@@ -122,7 +134,7 @@ public class PreTradeRiskCheckService {
         );
     }
 
-    private PreTradeRiskRuleCheckResult checkMaxOrderQuantity(
+    private PreTradeRiskRuleCheckResult evaluateMaxOrderQuantityRule(
             PreTradeRiskCheckCommand command,
             PreTradeRiskLimitContext limitContext
     ) {
@@ -158,7 +170,7 @@ public class PreTradeRiskCheckService {
         );
     }
 
-    private PreTradeRiskRuleCheckResult checkMaxOrderNotional(
+    private PreTradeRiskRuleCheckResult evaluateMaxOrderNotionalRule(
             PreTradeRiskCheckCommand command,
             PreTradeRiskLimitContext limitContext
     ) {
@@ -196,28 +208,30 @@ public class PreTradeRiskCheckService {
         );
     }
 
-    private PreTradeRiskRuleCheckResult checkMaxPositionQuantity(
+    private PreTradeRiskRuleCheckResult evaluateMaxPositionQuantityRule(
             PreTradeRiskCheckCommand command,
-            PreTradeRiskLimitContext limitContext
+            PreTradeRiskCheckContext checkContext
     ) {
+        PreTradeRiskLimitContext limitContext = checkContext.limitContext();
+        PreTradeRiskExposureContext exposureContext = checkContext.exposureContext();
         if (limitContext.maxPositionQty() == null) {
             return skipped(
                     PreTradeRiskRuleCode.MAX_POSITION_QUANTITY,
                     "maxPositionQty limit is not configured",
-                    expectedPositionValue(command, limitContext),
+                    expectedPositionValue(command, checkContext),
                     null
             );
         }
-        if (limitContext.currentPositionQty() == null || command.requestedQty() == null || command.side() == null) {
+        if (exposureContext.currentPositionQty() == null || command.requestedQty() == null || command.side() == null) {
             return skipped(
                     PreTradeRiskRuleCode.MAX_POSITION_QUANTITY,
                     "expected position cannot be calculated",
-                    expectedPositionValue(command, limitContext),
+                    expectedPositionValue(command, checkContext),
                     valueOf(limitContext.maxPositionQty())
             );
         }
 
-        BigDecimal expectedPositionQty = expectedPositionQty(command, limitContext);
+        BigDecimal expectedPositionQty = expectedPositionQty(command, exposureContext);
         if (expectedPositionQty.abs().compareTo(limitContext.maxPositionQty()) > 0) {
             return failed(
                     PreTradeRiskRuleCode.MAX_POSITION_QUANTITY,
@@ -319,21 +333,22 @@ public class PreTradeRiskCheckService {
 
     private String expectedPositionValue(
             PreTradeRiskCheckCommand command,
-            PreTradeRiskLimitContext limitContext
+            PreTradeRiskCheckContext checkContext
     ) {
-        if (limitContext.currentPositionQty() == null || command.requestedQty() == null || command.side() == null) {
+        PreTradeRiskExposureContext exposureContext = checkContext.exposureContext();
+        if (exposureContext.currentPositionQty() == null || command.requestedQty() == null || command.side() == null) {
             return null;
         }
-        return valueOf(expectedPositionQty(command, limitContext));
+        return valueOf(expectedPositionQty(command, exposureContext));
     }
 
     private BigDecimal expectedPositionQty(
             PreTradeRiskCheckCommand command,
-            PreTradeRiskLimitContext limitContext
+            PreTradeRiskExposureContext exposureContext
     ) {
         if (command.side() == OrderSide.SELL) {
-            return limitContext.currentPositionQty().subtract(command.requestedQty());
+            return exposureContext.currentPositionQty().subtract(command.requestedQty());
         }
-        return limitContext.currentPositionQty().add(command.requestedQty());
+        return exposureContext.currentPositionQty().add(command.requestedQty());
     }
 }

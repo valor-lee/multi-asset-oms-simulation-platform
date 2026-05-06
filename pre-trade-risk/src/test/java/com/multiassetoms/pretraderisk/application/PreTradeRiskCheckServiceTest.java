@@ -3,8 +3,10 @@ package com.multiassetoms.pretraderisk.application;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.intentgeneration.model.OrderType;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskExposureContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskLimitContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCode;
@@ -28,7 +30,7 @@ class PreTradeRiskCheckServiceTest {
 
     @Test
     void approvesValidLimitOrderIntent() {
-        PreTradeRiskCheckResult result = service.check(new PreTradeRiskCheckCommand(
+        PreTradeRiskCheckResult result = service.evaluateBasicRules(new PreTradeRiskCheckCommand(
                 UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 "portfolio-1",
                 "005930",
@@ -57,7 +59,7 @@ class PreTradeRiskCheckServiceTest {
 
     @Test
     void rejectsOrderIntentWithNonPositiveQuantity() {
-        PreTradeRiskCheckResult result = service.check(new PreTradeRiskCheckCommand(
+        PreTradeRiskCheckResult result = service.evaluateBasicRules(new PreTradeRiskCheckCommand(
                 UUID.fromString("00000000-0000-0000-0000-000000000002"),
                 "portfolio-1",
                 "005930",
@@ -75,7 +77,7 @@ class PreTradeRiskCheckServiceTest {
 
     @Test
     void rejectsLimitOrderIntentWithoutLimitPrice() {
-        PreTradeRiskCheckResult result = service.check(new PreTradeRiskCheckCommand(
+        PreTradeRiskCheckResult result = service.evaluateBasicRules(new PreTradeRiskCheckCommand(
                 UUID.fromString("00000000-0000-0000-0000-000000000003"),
                 "portfolio-1",
                 "005930",
@@ -95,7 +97,7 @@ class PreTradeRiskCheckServiceTest {
 
     @Test
     void passesWhenRequestedQuantityIsWithinMaxOrderQuantity() {
-        PreTradeRiskCheckResult result = service.check(
+        PreTradeRiskCheckResult result = service.evaluateWithLimits(
                 new PreTradeRiskCheckCommand(
                         UUID.fromString("00000000-0000-0000-0000-000000000004"),
                         "portfolio-1",
@@ -115,7 +117,7 @@ class PreTradeRiskCheckServiceTest {
 
     @Test
     void rejectsWhenRequestedQuantityExceedsMaxOrderQuantity() {
-        PreTradeRiskCheckResult result = service.check(
+        PreTradeRiskCheckResult result = service.evaluateWithLimits(
                 new PreTradeRiskCheckCommand(
                         UUID.fromString("00000000-0000-0000-0000-000000000005"),
                         "portfolio-1",
@@ -136,7 +138,7 @@ class PreTradeRiskCheckServiceTest {
 
     @Test
     void passesWhenOrderNotionalIsWithinMaxOrderNotional() {
-        PreTradeRiskCheckResult result = service.check(
+        PreTradeRiskCheckResult result = service.evaluateWithLimits(
                 new PreTradeRiskCheckCommand(
                         UUID.fromString("00000000-0000-0000-0000-000000000006"),
                         "portfolio-1",
@@ -156,7 +158,7 @@ class PreTradeRiskCheckServiceTest {
 
     @Test
     void rejectsWhenOrderNotionalExceedsMaxOrderNotional() {
-        PreTradeRiskCheckResult result = service.check(
+        PreTradeRiskCheckResult result = service.evaluateWithLimits(
                 new PreTradeRiskCheckCommand(
                         UUID.fromString("00000000-0000-0000-0000-000000000007"),
                         "portfolio-1",
@@ -177,7 +179,7 @@ class PreTradeRiskCheckServiceTest {
 
     @Test
     void passesWhenExpectedPositionIsWithinMaxPositionQuantity() {
-        PreTradeRiskCheckResult result = service.check(
+        PreTradeRiskCheckResult result = service.evaluateWithContext(
                 new PreTradeRiskCheckCommand(
                         UUID.fromString("00000000-0000-0000-0000-000000000008"),
                         "portfolio-1",
@@ -187,11 +189,13 @@ class PreTradeRiskCheckServiceTest {
                         new BigDecimal("10"),
                         new BigDecimal("55000")
                 ),
-                new PreTradeRiskLimitContext(
-                        null,
-                        null,
-                        new BigDecimal("90"),
-                        new BigDecimal("100")
+                new PreTradeRiskCheckContext(
+                        new PreTradeRiskLimitContext(
+                                null,
+                                null,
+                                new BigDecimal("100")
+                        ),
+                        new PreTradeRiskExposureContext(new BigDecimal("90"))
                 )
         );
 
@@ -202,7 +206,7 @@ class PreTradeRiskCheckServiceTest {
 
     @Test
     void rejectsWhenExpectedPositionExceedsMaxPositionQuantity() {
-        PreTradeRiskCheckResult result = service.check(
+        PreTradeRiskCheckResult result = service.evaluateWithContext(
                 new PreTradeRiskCheckCommand(
                         UUID.fromString("00000000-0000-0000-0000-000000000009"),
                         "portfolio-1",
@@ -212,11 +216,13 @@ class PreTradeRiskCheckServiceTest {
                         new BigDecimal("10"),
                         new BigDecimal("55000")
                 ),
-                new PreTradeRiskLimitContext(
-                        null,
-                        null,
-                        new BigDecimal("91"),
-                        new BigDecimal("100")
+                new PreTradeRiskCheckContext(
+                        new PreTradeRiskLimitContext(
+                                null,
+                                null,
+                                new BigDecimal("100")
+                        ),
+                        new PreTradeRiskExposureContext(new BigDecimal("91"))
                 )
         );
 
