@@ -8,6 +8,7 @@ import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskExposureContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskLimitContext;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskOpenOrderContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCode;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleStatus;
@@ -55,6 +56,8 @@ class PreTradeRiskCheckServiceTest {
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL).status());
         assertEquals(PreTradeRiskRuleStatus.SKIPPED,
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_POSITION_QUANTITY).status());
+        assertEquals(PreTradeRiskRuleStatus.SKIPPED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER).status());
     }
 
     @Test
@@ -230,6 +233,55 @@ class PreTradeRiskCheckServiceTest {
         assertEquals("expected position exceeds maxPositionQty", result.reason());
         assertEquals(PreTradeRiskRuleStatus.FAILED,
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_POSITION_QUANTITY).status());
+    }
+
+    @Test
+    void passesWhenDuplicateOpenOrderDoesNotExist() {
+        PreTradeRiskCheckResult result = service.evaluateWithContext(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000010"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskCheckContext(
+                        PreTradeRiskLimitContext.empty(),
+                        PreTradeRiskExposureContext.empty(),
+                        new PreTradeRiskOpenOrderContext(false)
+                )
+        );
+
+        assertEquals(PreTradeRiskDecision.APPROVED, result.decision());
+        assertEquals(PreTradeRiskRuleStatus.PASSED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER).status());
+    }
+
+    @Test
+    void rejectsWhenDuplicateOpenOrderExists() {
+        PreTradeRiskCheckResult result = service.evaluateWithContext(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000011"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskCheckContext(
+                        PreTradeRiskLimitContext.empty(),
+                        PreTradeRiskExposureContext.empty(),
+                        new PreTradeRiskOpenOrderContext(true)
+                )
+        );
+
+        assertEquals(PreTradeRiskDecision.REJECTED, result.decision());
+        assertEquals("duplicate open order exists", result.reason());
+        assertEquals(PreTradeRiskRuleStatus.FAILED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER).status());
     }
 
     private Map<PreTradeRiskRuleCode, PreTradeRiskRuleCheckResult> ruleResultsByCode(

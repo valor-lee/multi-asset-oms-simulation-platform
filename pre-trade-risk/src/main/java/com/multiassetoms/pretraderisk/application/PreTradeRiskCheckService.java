@@ -8,6 +8,7 @@ import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskExposureContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskLimitContext;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskOpenOrderContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCode;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleStatus;
@@ -57,6 +58,7 @@ public class PreTradeRiskCheckService {
         ruleResults.add(evaluateMaxOrderQuantityRule(command, checkContext.limitContext()));
         ruleResults.add(evaluateMaxOrderNotionalRule(command, checkContext.limitContext()));
         ruleResults.add(evaluateMaxPositionQuantityRule(command, checkContext));
+        ruleResults.add(evaluateDuplicateOpenOrderRule(checkContext.openOrderContext()));
 
         List<PreTradeRiskRuleCheckResult> failedResults = ruleResults.stream()
                 .filter(result -> result.status() == PreTradeRiskRuleStatus.FAILED)
@@ -245,6 +247,33 @@ public class PreTradeRiskCheckService {
                 "expected position is within maxPositionQty",
                 valueOf(expectedPositionQty),
                 valueOf(limitContext.maxPositionQty())
+        );
+    }
+
+    private PreTradeRiskRuleCheckResult evaluateDuplicateOpenOrderRule(
+            PreTradeRiskOpenOrderContext openOrderContext
+    ) {
+        if (openOrderContext.duplicateOpenOrderExists() == null) {
+            return skipped(
+                    PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER,
+                    "duplicate open order context is not configured",
+                    null,
+                    "false"
+            );
+        }
+        if (openOrderContext.duplicateOpenOrderExists()) {
+            return failed(
+                    PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER,
+                    "duplicate open order exists",
+                    valueOf(openOrderContext.duplicateOpenOrderExists()),
+                    "false"
+            );
+        }
+        return passed(
+                PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER,
+                "duplicate open order does not exist",
+                valueOf(openOrderContext.duplicateOpenOrderExists()),
+                "false"
         );
     }
 

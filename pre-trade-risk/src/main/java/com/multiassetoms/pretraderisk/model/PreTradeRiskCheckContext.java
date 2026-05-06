@@ -2,8 +2,16 @@ package com.multiassetoms.pretraderisk.model;
 
 public record PreTradeRiskCheckContext(
         PreTradeRiskLimitContext limitContext,
-        PreTradeRiskExposureContext exposureContext
+        PreTradeRiskExposureContext exposureContext,
+        PreTradeRiskOpenOrderContext openOrderContext
 ) {
+
+    public PreTradeRiskCheckContext(
+            PreTradeRiskLimitContext limitContext,
+            PreTradeRiskExposureContext exposureContext
+    ) {
+        this(limitContext, exposureContext, PreTradeRiskOpenOrderContext.empty());
+    }
 
     public PreTradeRiskCheckContext {
         if (limitContext == null) {
@@ -12,12 +20,16 @@ public record PreTradeRiskCheckContext(
         if (exposureContext == null) {
             exposureContext = PreTradeRiskExposureContext.empty();
         }
+        if (openOrderContext == null) {
+            openOrderContext = PreTradeRiskOpenOrderContext.empty();
+        }
     }
 
     public static PreTradeRiskCheckContext empty() {
         return new PreTradeRiskCheckContext(
                 PreTradeRiskLimitContext.empty(),
-                PreTradeRiskExposureContext.empty()
+                PreTradeRiskExposureContext.empty(),
+                PreTradeRiskOpenOrderContext.empty()
         );
     }
 }

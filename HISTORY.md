@@ -212,3 +212,22 @@
 #### 메모
 
 - 이후 현금, open order, market data 기반 규칙을 추가할 때 각각의 입력 컨텍스트를 독립적으로 확장할 수 있다.
+
+### 2026.05.07 slice
+
+동일 포트폴리오/종목에 이미 미체결 주문이 있는지 외부 조회 결과를 받아 중복 open order를 차단할 수 있도록 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `PreTradeRiskOpenOrderContext` 추가
+  - 현재는 `duplicateOpenOrderExists` 포함
+- `PreTradeRiskCheckContext`에 open order context 추가
+- `DUPLICATE_OPEN_ORDER` 규칙 추가
+- open order context가 없으면 해당 규칙은 `SKIPPED`
+- 중복 open order가 없으면 `PASSED`
+- 중복 open order가 있으면 `FAILED`, 전체 decision은 `REJECTED`
+- 중복 open order 유무 케이스 테스트 추가
+
+#### 메모
+
+- 실제 open order 조회는 아직 외부 저장소/OMS 상태 모델에 연결하지 않고, risk check 입력 컨텍스트로 받은 조회 결과를 평가하는 계약만 세운다.
