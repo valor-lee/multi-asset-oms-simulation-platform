@@ -66,8 +66,8 @@
 - `PreTradeRiskLimitContext` 추가
   - 현재는 `maxOrderQty`만 포함
 - `MAX_ORDER_QUANTITY` 규칙 추가
-- `PreTradeRiskCheckService.check(command, limitContext)` 추가
-- 기존 `check(command)`는 한도값이 없는 기본 컨텍스트로 동작하도록 유지
+- `PreTradeRiskCheckService.evaluateWithLimits(command, limitContext)` 추가
+- `evaluateBasicRules(command)`는 한도값이 없는 기본 컨텍스트로 동작
 - 최대 주문 수량 이하/초과/미설정 케이스 테스트 추가
 
 #### 현재 검사 규칙 추가
@@ -113,3 +113,24 @@
 - 예상 포지션을 계산할 수 없으면 `MAX_POSITION_QUANTITY`는 `SKIPPED`
 - 예상 포지션 절대값이 `maxPositionQty` 이하이면 `PASSED`
 - 예상 포지션 절대값이 `maxPositionQty`를 초과하면 `FAILED`, 전체 decision은 `REJECTED`
+
+### 2026.05.05 slice
+
+한도값과 현재 포트폴리오 상태가 하나의 컨텍스트에 섞이지 않도록 risk check 입력 컨텍스트를 분리.
+
+#### 이번 슬라이스에서 한 일
+
+- `PreTradeRiskLimitContext`를 순수 한도값 컨텍스트로 정리
+  - `maxOrderQty`, `maxOrderNotional`, `maxPositionQty`
+- `PreTradeRiskExposureContext` 추가
+  - 현재는 `currentPositionQty` 포함
+- `PreTradeRiskCheckContext` 추가
+  - limit context와 exposure context를 묶어 risk check에 전달
+- 기존 limit context 기반 호출 경로는 `evaluateWithLimits(command, limitContext)`로 유지
+  - exposure가 필요 없는 주문 수량/금액 한도 검사는 기존 호출 방식으로 계속 사용 가능
+- 포지션 한도 검사는 `PreTradeRiskCheckContext`의 exposure context를 사용하도록 변경
+- 검사 진입점 메서드를 목적에 맞게 `evaluateBasicRules`, `evaluateWithLimits`, `evaluateWithContext`로 정리
+
+#### 메모
+
+- 이후 현금, open order, market data 기반 규칙을 추가할 때 각각의 입력 컨텍스트를 독립적으로 확장할 수 있다.
