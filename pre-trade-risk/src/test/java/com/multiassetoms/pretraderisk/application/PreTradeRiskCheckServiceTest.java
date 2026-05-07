@@ -5,9 +5,11 @@ import com.multiassetoms.intentgeneration.model.OrderType;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskControlContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskExposureContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskLimitContext;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskMarketContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskOpenOrderContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCode;
@@ -58,6 +60,10 @@ class PreTradeRiskCheckServiceTest {
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_POSITION_QUANTITY).status());
         assertEquals(PreTradeRiskRuleStatus.SKIPPED,
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER).status());
+        assertEquals(PreTradeRiskRuleStatus.SKIPPED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.PRICE_BAND).status());
+        assertEquals(PreTradeRiskRuleStatus.SKIPPED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.KILL_SWITCH).status());
     }
 
     @Test
@@ -282,6 +288,112 @@ class PreTradeRiskCheckServiceTest {
         assertEquals("duplicate open order exists", result.reason());
         assertEquals(PreTradeRiskRuleStatus.FAILED,
                 ruleResultsByCode(result).get(PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER).status());
+    }
+
+    @Test
+    void passesWhenLimitPriceIsWithinPriceBand() {
+        PreTradeRiskCheckResult result = service.evaluateWithContext(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000012"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskCheckContext(
+                        PreTradeRiskLimitContext.empty(),
+                        PreTradeRiskExposureContext.empty(),
+                        PreTradeRiskOpenOrderContext.empty(),
+                        new PreTradeRiskMarketContext(new BigDecimal("50000"), new BigDecimal("60000")),
+                        PreTradeRiskControlContext.empty()
+                )
+        );
+
+        assertEquals(PreTradeRiskDecision.APPROVED, result.decision());
+        assertEquals(PreTradeRiskRuleStatus.PASSED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.PRICE_BAND).status());
+    }
+
+    @Test
+    void rejectsWhenLimitPriceIsOutsidePriceBand() {
+        PreTradeRiskCheckResult result = service.evaluateWithContext(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000013"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("61000")
+                ),
+                new PreTradeRiskCheckContext(
+                        PreTradeRiskLimitContext.empty(),
+                        PreTradeRiskExposureContext.empty(),
+                        PreTradeRiskOpenOrderContext.empty(),
+                        new PreTradeRiskMarketContext(new BigDecimal("50000"), new BigDecimal("60000")),
+                        PreTradeRiskControlContext.empty()
+                )
+        );
+
+        assertEquals(PreTradeRiskDecision.REJECTED, result.decision());
+        assertEquals("limitPrice is outside price band", result.reason());
+        assertEquals(PreTradeRiskRuleStatus.FAILED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.PRICE_BAND).status());
+    }
+
+    @Test
+    void passesWhenKillSwitchIsDisabled() {
+        PreTradeRiskCheckResult result = service.evaluateWithContext(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000014"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskCheckContext(
+                        PreTradeRiskLimitContext.empty(),
+                        PreTradeRiskExposureContext.empty(),
+                        PreTradeRiskOpenOrderContext.empty(),
+                        PreTradeRiskMarketContext.empty(),
+                        new PreTradeRiskControlContext(false)
+                )
+        );
+
+        assertEquals(PreTradeRiskDecision.APPROVED, result.decision());
+        assertEquals(PreTradeRiskRuleStatus.PASSED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.KILL_SWITCH).status());
+    }
+
+    @Test
+    void rejectsWhenKillSwitchIsEnabled() {
+        PreTradeRiskCheckResult result = service.evaluateWithContext(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000015"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskCheckContext(
+                        PreTradeRiskLimitContext.empty(),
+                        PreTradeRiskExposureContext.empty(),
+                        PreTradeRiskOpenOrderContext.empty(),
+                        PreTradeRiskMarketContext.empty(),
+                        new PreTradeRiskControlContext(true)
+                )
+        );
+
+        assertEquals(PreTradeRiskDecision.REJECTED, result.decision());
+        assertEquals("kill switch is enabled", result.reason());
+        assertEquals(PreTradeRiskRuleStatus.FAILED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.KILL_SWITCH).status());
     }
 
     private Map<PreTradeRiskRuleCode, PreTradeRiskRuleCheckResult> ruleResultsByCode(

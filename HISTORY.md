@@ -215,19 +215,35 @@
 
 ### 2026.05.07 slice
 
-동일 포트폴리오/종목에 이미 미체결 주문이 있는지 외부 조회 결과를 받아 중복 open order를 차단할 수 있도록 확장.
+남은 pre-trade risk 1차 규칙의 입력 계약과 평가 로직을 추가.
 
 #### 이번 슬라이스에서 한 일
 
 - `PreTradeRiskOpenOrderContext` 추가
   - 현재는 `duplicateOpenOrderExists` 포함
+- `PreTradeRiskMarketContext` 추가
+  - 현재는 `lowerPriceBand`, `upperPriceBand` 포함
+- `PreTradeRiskControlContext` 추가
+  - 현재는 `killSwitchEnabled` 포함
 - `PreTradeRiskCheckContext`에 open order context 추가
+- `PreTradeRiskCheckContext`에 market context, control context 추가
 - `DUPLICATE_OPEN_ORDER` 규칙 추가
-- open order context가 없으면 해당 규칙은 `SKIPPED`
-- 중복 open order가 없으면 `PASSED`
-- 중복 open order가 있으면 `FAILED`, 전체 decision은 `REJECTED`
-- 중복 open order 유무 케이스 테스트 추가
+- `PRICE_BAND` 규칙 추가
+- `KILL_SWITCH` 규칙 추가
+- 각 규칙의 `SKIPPED` / `PASSED` / `FAILED` 케이스 테스트 추가
+
+#### 현재 검사 규칙 추가
+
+- open order context가 없으면 `DUPLICATE_OPEN_ORDER`는 `SKIPPED`
+- 중복 open order가 없으면 `DUPLICATE_OPEN_ORDER`는 `PASSED`
+- 중복 open order가 있으면 `DUPLICATE_OPEN_ORDER`는 `FAILED`, 전체 decision은 `REJECTED`
+- price band context가 없거나 주문 가격이 없으면 `PRICE_BAND`는 `SKIPPED`
+- `limitPrice`가 price band 안이면 `PRICE_BAND`는 `PASSED`
+- `limitPrice`가 price band 밖이면 `PRICE_BAND`는 `FAILED`, 전체 decision은 `REJECTED`
+- kill switch context가 없으면 `KILL_SWITCH`는 `SKIPPED`
+- kill switch가 꺼져 있으면 `KILL_SWITCH`는 `PASSED`
+- kill switch가 켜져 있으면 `KILL_SWITCH`는 `FAILED`, 전체 decision은 `REJECTED`
 
 #### 메모
 
-- 실제 open order 조회는 아직 외부 저장소/OMS 상태 모델에 연결하지 않고, risk check 입력 컨텍스트로 받은 조회 결과를 평가하는 계약만 세운다.
+- 실제 open order 조회, 시장 기준가/가격 밴드 조회, kill switch 설정 조회는 아직 외부 저장소/OMS 상태 모델에 연결하지 않고, risk check 입력 컨텍스트로 받은 조회 결과를 평가하는 계약만 세운다.

@@ -5,9 +5,11 @@ import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskControlContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskExposureContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskLimitContext;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskMarketContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskOpenOrderContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCode;
@@ -59,6 +61,8 @@ public class PreTradeRiskCheckService {
         ruleResults.add(evaluateMaxOrderNotionalRule(command, checkContext.limitContext()));
         ruleResults.add(evaluateMaxPositionQuantityRule(command, checkContext));
         ruleResults.add(evaluateDuplicateOpenOrderRule(checkContext.openOrderContext()));
+        ruleResults.add(evaluatePriceBandRule(command, checkContext.marketContext()));
+        ruleResults.add(evaluateKillSwitchRule(checkContext.controlContext()));
 
         List<PreTradeRiskRuleCheckResult> failedResults = ruleResults.stream()
                 .filter(result -> result.status() == PreTradeRiskRuleStatus.FAILED)
@@ -277,6 +281,70 @@ public class PreTradeRiskCheckService {
         );
     }
 
+    private PreTradeRiskRuleCheckResult evaluatePriceBandRule(
+            PreTradeRiskCheckCommand command,
+            PreTradeRiskMarketContext marketContext
+    ) {
+        if (marketContext.lowerPriceBand() == null || marketContext.upperPriceBand() == null) {
+            return skipped(
+                    PreTradeRiskRuleCode.PRICE_BAND,
+                    "price band context is not configured",
+                    valueOf(command.limitPrice()),
+                    priceBandValue(marketContext)
+            );
+        }
+        if (command.limitPrice() == null) {
+            return skipped(
+                    PreTradeRiskRuleCode.PRICE_BAND,
+                    "limitPrice is not present",
+                    null,
+                    priceBandValue(marketContext)
+            );
+        }
+        if (command.limitPrice().compareTo(marketContext.lowerPriceBand()) < 0
+                || command.limitPrice().compareTo(marketContext.upperPriceBand()) > 0) {
+            return failed(
+                    PreTradeRiskRuleCode.PRICE_BAND,
+                    "limitPrice is outside price band",
+                    valueOf(command.limitPrice()),
+                    priceBandValue(marketContext)
+            );
+        }
+        return passed(
+                PreTradeRiskRuleCode.PRICE_BAND,
+                "limitPrice is within price band",
+                valueOf(command.limitPrice()),
+                priceBandValue(marketContext)
+        );
+    }
+
+    private PreTradeRiskRuleCheckResult evaluateKillSwitchRule(
+            PreTradeRiskControlContext controlContext
+    ) {
+        if (controlContext.killSwitchEnabled() == null) {
+            return skipped(
+                    PreTradeRiskRuleCode.KILL_SWITCH,
+                    "kill switch context is not configured",
+                    null,
+                    "false"
+            );
+        }
+        if (controlContext.killSwitchEnabled()) {
+            return failed(
+                    PreTradeRiskRuleCode.KILL_SWITCH,
+                    "kill switch is enabled",
+                    valueOf(controlContext.killSwitchEnabled()),
+                    "false"
+            );
+        }
+        return passed(
+                PreTradeRiskRuleCode.KILL_SWITCH,
+                "kill switch is disabled",
+                valueOf(controlContext.killSwitchEnabled()),
+                "false"
+        );
+    }
+
     private PreTradeRiskCheckResult approve(
             PreTradeRiskCheckCommand command,
             List<PreTradeRiskRuleCheckResult> ruleResults
@@ -379,5 +447,12 @@ public class PreTradeRiskCheckService {
             return exposureContext.currentPositionQty().subtract(command.requestedQty());
         }
         return exposureContext.currentPositionQty().add(command.requestedQty());
+    }
+
+    private String priceBandValue(PreTradeRiskMarketContext marketContext) {
+        if (marketContext.lowerPriceBand() == null || marketContext.upperPriceBand() == null) {
+            return null;
+        }
+        return marketContext.lowerPriceBand() + ".." + marketContext.upperPriceBand();
     }
 }
