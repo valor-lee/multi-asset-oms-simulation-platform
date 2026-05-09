@@ -247,3 +247,56 @@
 #### 메모
 
 - 실제 open order 조회, 시장 기준가/가격 밴드 조회, kill switch 설정 조회는 아직 외부 저장소/OMS 상태 모델에 연결하지 않고, risk check 입력 컨텍스트로 받은 조회 결과를 평가하는 계약만 세운다.
+
+### 2026.05.09 slice
+
+`PreTradeRiskCheckService`에 모여 있던 개별 규칙 평가 로직을 rule 컴포넌트로 분리.
+
+#### 작업 배경
+
+- 1차 risk rule이 늘어나면서 `PreTradeRiskCheckService`가 규칙 판단, 결과 생성, 실행 순서 관리, 전체 decision 집계를 모두 담당하게 됐다.
+- 새 규칙을 추가할 때마다 service가 계속 커지고, 기존 규칙 수정과 전체 평가 흐름 수정이 같은 파일에서 섞이는 문제가 생겼다.
+- 이후 rule enable/disable, rule 우선순위, rule별 테스트, 외부 조회 연동을 고려하면 규칙 단위의 독립성이 필요하다.
+
+#### 이번 슬라이스에서 한 일
+
+- `PreTradeRiskRule` 인터페이스 추가
+- `AbstractPreTradeRiskRule` 추가
+  - 규칙 결과 생성 helper를 공통화
+- 기존 규칙별 class 추가
+  - `PositiveQuantityRule`
+  - `LimitPriceRequiredRule`
+  - `PositiveLimitPriceRule`
+  - `MaxOrderQuantityRule`
+  - `MaxOrderNotionalRule`
+  - `MaxPositionQuantityRule`
+  - `DuplicateOpenOrderRule`
+  - `PriceBandRule`
+  - `KillSwitchRule`
+- `PreTradeRiskCheckService`는 rule list 실행과 전체 decision 집계만 담당하도록 축소
+- `evaluateWithContext(command, null)` 호출 시 empty context로 평가하도록 방어
+
+#### 구조 개선 효과
+
+- `PreTradeRiskCheckService`의 책임이 rule 실행과 결과 집계로 좁아졌다.
+- 개별 규칙의 판단 로직은 각 rule class에 모여 있어 수정 범위가 작아졌다.
+- 새 규칙은 `PreTradeRiskRule` 구현체를 추가하고 rule list에 등록하는 방식으로 확장할 수 있다.
+- 전체 `reason`은 첫 번째 failed rule의 메시지를 대표 사유로 유지하고, 상세 실패 정보는 기존처럼 `ruleResults`에서 모두 확인할 수 있다.
+- rule list 순서가 대표 거절 사유의 우선순위 역할을 하므로 기존 동작과 호환된다.
+
+#### interface / abstract 적용 이유
+
+- interface는 구현체가 지켜야 할 기능 계약을 정의할 때 사용하고, abstract class는 여러 구현체가 공유하는 공통 로직이나 상태를 제공하면서 일부 동작은 하위 클래스에 맡기고 싶을 때 사용한다.
+- `PreTradeRiskRule`은 모든 규칙이 따라야 하는 공통 계약이다.
+  - 입력: `PreTradeRiskCheckCommand`, `PreTradeRiskCheckContext`
+  - 출력: `PreTradeRiskRuleCheckResult`
+  - service는 구체 rule 타입을 몰라도 동일한 방식으로 실행할 수 있다.
+- `AbstractPreTradeRiskRule`은 각 rule에서 반복되는 결과 생성 코드를 공통화한다.
+  - `passed(...)`, `failed(...)`, `skipped(...)`, `valueOf(...)`
+  - 각 rule class는 비즈니스 판단 조건에 집중할 수 있다.
+- interface는 실행 계약을 고정하고, abstract class는 구현 중복을 줄이는 역할로 분리했다.
+- 현재 구조에서는 `PreTradeRiskRule`로 모든 rule의 실행 계약을 통일하고, `AbstractPreTradeRiskRule`로 rule 결과 생성 helper를 재사용하도록 분리했다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :pre-trade-risk:test`

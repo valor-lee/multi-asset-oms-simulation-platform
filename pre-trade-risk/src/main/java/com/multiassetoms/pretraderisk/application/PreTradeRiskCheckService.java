@@ -1,37 +1,45 @@
 package com.multiassetoms.pretraderisk.application;
 
-import com.multiassetoms.intentgeneration.model.OrderType;
-import com.multiassetoms.intentgeneration.model.OrderSide;
+import com.multiassetoms.pretraderisk.application.rule.DuplicateOpenOrderRule;
+import com.multiassetoms.pretraderisk.application.rule.KillSwitchRule;
+import com.multiassetoms.pretraderisk.application.rule.LimitPriceRequiredRule;
+import com.multiassetoms.pretraderisk.application.rule.MaxOrderNotionalRule;
+import com.multiassetoms.pretraderisk.application.rule.MaxOrderQuantityRule;
+import com.multiassetoms.pretraderisk.application.rule.MaxPositionQuantityRule;
+import com.multiassetoms.pretraderisk.application.rule.PriceBandRule;
+import com.multiassetoms.pretraderisk.application.rule.PositiveLimitPriceRule;
+import com.multiassetoms.pretraderisk.application.rule.PositiveQuantityRule;
+import com.multiassetoms.pretraderisk.application.rule.PreTradeRiskRule;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
-import com.multiassetoms.pretraderisk.model.PreTradeRiskControlContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskExposureContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskLimitContext;
-import com.multiassetoms.pretraderisk.model.PreTradeRiskMarketContext;
-import com.multiassetoms.pretraderisk.model.PreTradeRiskOpenOrderContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCheckResult;
-import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCode;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleStatus;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class PreTradeRiskCheckService {
 
+    private final List<PreTradeRiskRule> rules;
     private final Clock clock;
 
     public PreTradeRiskCheckService() {
-        this(Clock.systemUTC());
+        this(defaultRules(), Clock.systemUTC());
     }
 
     PreTradeRiskCheckService(Clock clock) {
+        this(defaultRules(), clock);
+    }
+
+    PreTradeRiskCheckService(List<PreTradeRiskRule> rules, Clock clock) {
+        this.rules = List.copyOf(rules);
         this.clock = clock;
     }
 
@@ -53,16 +61,13 @@ public class PreTradeRiskCheckService {
             PreTradeRiskCheckCommand command,
             PreTradeRiskCheckContext checkContext
     ) {
-        List<PreTradeRiskRuleCheckResult> ruleResults = new ArrayList<>();
-        ruleResults.add(evaluatePositiveQuantityRule(command));
-        ruleResults.add(evaluateLimitPriceRequiredRule(command));
-        ruleResults.add(evaluatePositiveLimitPriceRule(command));
-        ruleResults.add(evaluateMaxOrderQuantityRule(command, checkContext.limitContext()));
-        ruleResults.add(evaluateMaxOrderNotionalRule(command, checkContext.limitContext()));
-        ruleResults.add(evaluateMaxPositionQuantityRule(command, checkContext));
-        ruleResults.add(evaluateDuplicateOpenOrderRule(checkContext.openOrderContext()));
-        ruleResults.add(evaluatePriceBandRule(command, checkContext.marketContext()));
-        ruleResults.add(evaluateKillSwitchRule(checkContext.controlContext()));
+        PreTradeRiskCheckContext resolvedContext = checkContext == null
+                ? PreTradeRiskCheckContext.empty()
+                : checkContext;
+
+        List<PreTradeRiskRuleCheckResult> ruleResults = rules.stream()
+                .map(rule -> rule.evaluate(command, resolvedContext))
+                .toList();
 
         List<PreTradeRiskRuleCheckResult> failedResults = ruleResults.stream()
                 .filter(result -> result.status() == PreTradeRiskRuleStatus.FAILED)
@@ -71,278 +76,6 @@ public class PreTradeRiskCheckService {
             return reject(command, failedResults.getFirst().message(), ruleResults);
         }
         return approve(command, ruleResults);
-    }
-
-    private PreTradeRiskRuleCheckResult evaluatePositiveQuantityRule(PreTradeRiskCheckCommand command) {
-        if (command.requestedQty() == null || command.requestedQty().compareTo(BigDecimal.ZERO) <= 0) {
-            return failed(
-                    PreTradeRiskRuleCode.POSITIVE_QUANTITY,
-                    "requestedQty must be greater than zero",
-                    valueOf(command.requestedQty()),
-                    "0"
-            );
-        }
-        return passed(
-                PreTradeRiskRuleCode.POSITIVE_QUANTITY,
-                "requestedQty is greater than zero",
-                valueOf(command.requestedQty()),
-                "0"
-        );
-    }
-
-    private PreTradeRiskRuleCheckResult evaluateLimitPriceRequiredRule(PreTradeRiskCheckCommand command) {
-        if (command.orderType() == OrderType.LIMIT && command.limitPrice() == null) {
-            return failed(
-                    PreTradeRiskRuleCode.LIMIT_PRICE_REQUIRED,
-                    "limitPrice is required for LIMIT orders",
-                    null,
-                    "required"
-            );
-        }
-        if (command.orderType() != OrderType.LIMIT) {
-            return skipped(
-                    PreTradeRiskRuleCode.LIMIT_PRICE_REQUIRED,
-                    "orderType is not LIMIT",
-                    valueOf(command.orderType()),
-                    "LIMIT"
-            );
-        }
-        return passed(
-                PreTradeRiskRuleCode.LIMIT_PRICE_REQUIRED,
-                "limitPrice is present for LIMIT order",
-                valueOf(command.limitPrice()),
-                "required"
-        );
-    }
-
-    private PreTradeRiskRuleCheckResult evaluatePositiveLimitPriceRule(PreTradeRiskCheckCommand command) {
-        if (command.limitPrice() == null) {
-            return skipped(
-                    PreTradeRiskRuleCode.POSITIVE_LIMIT_PRICE,
-                    "limitPrice is not present",
-                    null,
-                    "0"
-            );
-        }
-        if (command.limitPrice() != null && command.limitPrice().compareTo(BigDecimal.ZERO) <= 0) {
-            return failed(
-                    PreTradeRiskRuleCode.POSITIVE_LIMIT_PRICE,
-                    "limitPrice must be greater than zero",
-                    valueOf(command.limitPrice()),
-                    "0"
-            );
-        }
-        return passed(
-                PreTradeRiskRuleCode.POSITIVE_LIMIT_PRICE,
-                "limitPrice is greater than zero",
-                valueOf(command.limitPrice()),
-                "0"
-        );
-    }
-
-    private PreTradeRiskRuleCheckResult evaluateMaxOrderQuantityRule(
-            PreTradeRiskCheckCommand command,
-            PreTradeRiskLimitContext limitContext
-    ) {
-        if (limitContext.maxOrderQty() == null) {
-            return skipped(
-                    PreTradeRiskRuleCode.MAX_ORDER_QUANTITY,
-                    "maxOrderQty limit is not configured",
-                    valueOf(command.requestedQty()),
-                    null
-            );
-        }
-        if (command.requestedQty() == null) {
-            return skipped(
-                    PreTradeRiskRuleCode.MAX_ORDER_QUANTITY,
-                    "requestedQty is not present",
-                    null,
-                    valueOf(limitContext.maxOrderQty())
-            );
-        }
-        if (command.requestedQty().compareTo(limitContext.maxOrderQty()) > 0) {
-            return failed(
-                    PreTradeRiskRuleCode.MAX_ORDER_QUANTITY,
-                    "requestedQty exceeds maxOrderQty",
-                    valueOf(command.requestedQty()),
-                    valueOf(limitContext.maxOrderQty())
-            );
-        }
-        return passed(
-                PreTradeRiskRuleCode.MAX_ORDER_QUANTITY,
-                "requestedQty is within maxOrderQty",
-                valueOf(command.requestedQty()),
-                valueOf(limitContext.maxOrderQty())
-        );
-    }
-
-    private PreTradeRiskRuleCheckResult evaluateMaxOrderNotionalRule(
-            PreTradeRiskCheckCommand command,
-            PreTradeRiskLimitContext limitContext
-    ) {
-        if (limitContext.maxOrderNotional() == null) {
-            return skipped(
-                    PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL,
-                    "maxOrderNotional limit is not configured",
-                    orderNotionalValue(command),
-                    null
-            );
-        }
-        if (command.requestedQty() == null || command.limitPrice() == null) {
-            return skipped(
-                    PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL,
-                    "order notional cannot be calculated",
-                    orderNotionalValue(command),
-                    valueOf(limitContext.maxOrderNotional())
-            );
-        }
-
-        BigDecimal orderNotional = command.requestedQty().multiply(command.limitPrice());
-        if (orderNotional.compareTo(limitContext.maxOrderNotional()) > 0) {
-            return failed(
-                    PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL,
-                    "order notional exceeds maxOrderNotional",
-                    valueOf(orderNotional),
-                    valueOf(limitContext.maxOrderNotional())
-            );
-        }
-        return passed(
-                PreTradeRiskRuleCode.MAX_ORDER_NOTIONAL,
-                "order notional is within maxOrderNotional",
-                valueOf(orderNotional),
-                valueOf(limitContext.maxOrderNotional())
-        );
-    }
-
-    private PreTradeRiskRuleCheckResult evaluateMaxPositionQuantityRule(
-            PreTradeRiskCheckCommand command,
-            PreTradeRiskCheckContext checkContext
-    ) {
-        PreTradeRiskLimitContext limitContext = checkContext.limitContext();
-        PreTradeRiskExposureContext exposureContext = checkContext.exposureContext();
-        if (limitContext.maxPositionQty() == null) {
-            return skipped(
-                    PreTradeRiskRuleCode.MAX_POSITION_QUANTITY,
-                    "maxPositionQty limit is not configured",
-                    expectedPositionValue(command, checkContext),
-                    null
-            );
-        }
-        if (exposureContext.currentPositionQty() == null || command.requestedQty() == null || command.side() == null) {
-            return skipped(
-                    PreTradeRiskRuleCode.MAX_POSITION_QUANTITY,
-                    "expected position cannot be calculated",
-                    expectedPositionValue(command, checkContext),
-                    valueOf(limitContext.maxPositionQty())
-            );
-        }
-
-        BigDecimal expectedPositionQty = expectedPositionQty(command, exposureContext);
-        if (expectedPositionQty.abs().compareTo(limitContext.maxPositionQty()) > 0) {
-            return failed(
-                    PreTradeRiskRuleCode.MAX_POSITION_QUANTITY,
-                    "expected position exceeds maxPositionQty",
-                    valueOf(expectedPositionQty),
-                    valueOf(limitContext.maxPositionQty())
-            );
-        }
-        return passed(
-                PreTradeRiskRuleCode.MAX_POSITION_QUANTITY,
-                "expected position is within maxPositionQty",
-                valueOf(expectedPositionQty),
-                valueOf(limitContext.maxPositionQty())
-        );
-    }
-
-    private PreTradeRiskRuleCheckResult evaluateDuplicateOpenOrderRule(
-            PreTradeRiskOpenOrderContext openOrderContext
-    ) {
-        if (openOrderContext.duplicateOpenOrderExists() == null) {
-            return skipped(
-                    PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER,
-                    "duplicate open order context is not configured",
-                    null,
-                    "false"
-            );
-        }
-        if (openOrderContext.duplicateOpenOrderExists()) {
-            return failed(
-                    PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER,
-                    "duplicate open order exists",
-                    valueOf(openOrderContext.duplicateOpenOrderExists()),
-                    "false"
-            );
-        }
-        return passed(
-                PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER,
-                "duplicate open order does not exist",
-                valueOf(openOrderContext.duplicateOpenOrderExists()),
-                "false"
-        );
-    }
-
-    private PreTradeRiskRuleCheckResult evaluatePriceBandRule(
-            PreTradeRiskCheckCommand command,
-            PreTradeRiskMarketContext marketContext
-    ) {
-        if (marketContext.lowerPriceBand() == null || marketContext.upperPriceBand() == null) {
-            return skipped(
-                    PreTradeRiskRuleCode.PRICE_BAND,
-                    "price band context is not configured",
-                    valueOf(command.limitPrice()),
-                    priceBandValue(marketContext)
-            );
-        }
-        if (command.limitPrice() == null) {
-            return skipped(
-                    PreTradeRiskRuleCode.PRICE_BAND,
-                    "limitPrice is not present",
-                    null,
-                    priceBandValue(marketContext)
-            );
-        }
-        if (command.limitPrice().compareTo(marketContext.lowerPriceBand()) < 0
-                || command.limitPrice().compareTo(marketContext.upperPriceBand()) > 0) {
-            return failed(
-                    PreTradeRiskRuleCode.PRICE_BAND,
-                    "limitPrice is outside price band",
-                    valueOf(command.limitPrice()),
-                    priceBandValue(marketContext)
-            );
-        }
-        return passed(
-                PreTradeRiskRuleCode.PRICE_BAND,
-                "limitPrice is within price band",
-                valueOf(command.limitPrice()),
-                priceBandValue(marketContext)
-        );
-    }
-
-    private PreTradeRiskRuleCheckResult evaluateKillSwitchRule(
-            PreTradeRiskControlContext controlContext
-    ) {
-        if (controlContext.killSwitchEnabled() == null) {
-            return skipped(
-                    PreTradeRiskRuleCode.KILL_SWITCH,
-                    "kill switch context is not configured",
-                    null,
-                    "false"
-            );
-        }
-        if (controlContext.killSwitchEnabled()) {
-            return failed(
-                    PreTradeRiskRuleCode.KILL_SWITCH,
-                    "kill switch is enabled",
-                    valueOf(controlContext.killSwitchEnabled()),
-                    "false"
-            );
-        }
-        return passed(
-                PreTradeRiskRuleCode.KILL_SWITCH,
-                "kill switch is disabled",
-                valueOf(controlContext.killSwitchEnabled()),
-                "false"
-        );
     }
 
     private PreTradeRiskCheckResult approve(
@@ -372,87 +105,17 @@ public class PreTradeRiskCheckService {
         );
     }
 
-    private PreTradeRiskRuleCheckResult passed(
-            PreTradeRiskRuleCode ruleCode,
-            String message,
-            String evaluatedValue,
-            String thresholdValue
-    ) {
-        return new PreTradeRiskRuleCheckResult(
-                ruleCode,
-                PreTradeRiskRuleStatus.PASSED,
-                message,
-                evaluatedValue,
-                thresholdValue
+    private static List<PreTradeRiskRule> defaultRules() {
+        return List.of(
+                new PositiveQuantityRule(),
+                new LimitPriceRequiredRule(),
+                new PositiveLimitPriceRule(),
+                new MaxOrderQuantityRule(),
+                new MaxOrderNotionalRule(),
+                new MaxPositionQuantityRule(),
+                new DuplicateOpenOrderRule(),
+                new PriceBandRule(),
+                new KillSwitchRule()
         );
-    }
-
-    private PreTradeRiskRuleCheckResult failed(
-            PreTradeRiskRuleCode ruleCode,
-            String message,
-            String evaluatedValue,
-            String thresholdValue
-    ) {
-        return new PreTradeRiskRuleCheckResult(
-                ruleCode,
-                PreTradeRiskRuleStatus.FAILED,
-                message,
-                evaluatedValue,
-                thresholdValue
-        );
-    }
-
-    private PreTradeRiskRuleCheckResult skipped(
-            PreTradeRiskRuleCode ruleCode,
-            String message,
-            String evaluatedValue,
-            String thresholdValue
-    ) {
-        return new PreTradeRiskRuleCheckResult(
-                ruleCode,
-                PreTradeRiskRuleStatus.SKIPPED,
-                message,
-                evaluatedValue,
-                thresholdValue
-        );
-    }
-
-    private String valueOf(Object value) {
-        return value == null ? null : value.toString();
-    }
-
-    private String orderNotionalValue(PreTradeRiskCheckCommand command) {
-        if (command.requestedQty() == null || command.limitPrice() == null) {
-            return null;
-        }
-        return valueOf(command.requestedQty().multiply(command.limitPrice()));
-    }
-
-    private String expectedPositionValue(
-            PreTradeRiskCheckCommand command,
-            PreTradeRiskCheckContext checkContext
-    ) {
-        PreTradeRiskExposureContext exposureContext = checkContext.exposureContext();
-        if (exposureContext.currentPositionQty() == null || command.requestedQty() == null || command.side() == null) {
-            return null;
-        }
-        return valueOf(expectedPositionQty(command, exposureContext));
-    }
-
-    private BigDecimal expectedPositionQty(
-            PreTradeRiskCheckCommand command,
-            PreTradeRiskExposureContext exposureContext
-    ) {
-        if (command.side() == OrderSide.SELL) {
-            return exposureContext.currentPositionQty().subtract(command.requestedQty());
-        }
-        return exposureContext.currentPositionQty().add(command.requestedQty());
-    }
-
-    private String priceBandValue(PreTradeRiskMarketContext marketContext) {
-        if (marketContext.lowerPriceBand() == null || marketContext.upperPriceBand() == null) {
-            return null;
-        }
-        return marketContext.lowerPriceBand() + ".." + marketContext.upperPriceBand();
     }
 }
