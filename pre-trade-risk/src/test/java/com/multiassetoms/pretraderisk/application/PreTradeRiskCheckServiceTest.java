@@ -67,6 +67,26 @@ class PreTradeRiskCheckServiceTest {
     }
 
     @Test
+    void evaluatesWithEmptyContextWhenCheckContextIsNull() {
+        PreTradeRiskCheckResult result = service.evaluateWithContext(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000016"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                null
+        );
+
+        assertEquals(PreTradeRiskDecision.APPROVED, result.decision());
+        assertEquals(PreTradeRiskRuleStatus.SKIPPED,
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.MAX_ORDER_QUANTITY).status());
+    }
+
+    @Test
     void rejectsOrderIntentWithNonPositiveQuantity() {
         PreTradeRiskCheckResult result = service.evaluateBasicRules(new PreTradeRiskCheckCommand(
                 UUID.fromString("00000000-0000-0000-0000-000000000002"),
