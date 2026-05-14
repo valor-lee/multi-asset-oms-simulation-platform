@@ -300,3 +300,39 @@
 #### 검증
 
 - 실행 테스트: `./gradlew :pre-trade-risk:test`
+
+### 2026.05.09 slice
+
+pre-trade risk 평가 결과를 `OrderIntent` 상태 전이와 연결.
+
+#### 이번 슬라이스에서 한 일
+
+- `PreTradeRiskOrderIntentService` 추가
+  - `OrderIntent`를 risk check command로 변환해 평가
+  - risk decision에 따라 새 `OrderIntent` 인스턴스의 status를 전이
+- `PreTradeRiskOrderIntentResult` 추가
+  - 상태 전이된 `OrderIntent`와 상세 `PreTradeRiskCheckResult`를 함께 반환
+- `PreTradeRiskTransitionException` 추가
+  - `CREATED` 상태가 아닌 intent는 pre-trade risk 평가 대상에서 제외
+- risk 승인 시 `CREATED -> RISK_APPROVED` 전이
+- risk 거절 시 `CREATED -> RISK_REJECTED` 전이
+- 상태 전이 시 `createdAt`은 유지하고 `updatedAt`은 risk check 시각으로 갱신
+
+#### 메모
+
+- 기존 `OrderIntent`는 record라 직접 변경하지 않고 새 인스턴스를 반환한다.
+- `OrderIntent`는 주문 흐름의 특정 시점 상태를 표현하는 불변 스냅샷으로 다룬다.
+  - 기존 intent는 `CREATED` 상태 그대로 유지한다.
+  - risk 평가 결과는 `RISK_APPROVED` 또는 `RISK_REJECTED` 상태의 새 intent로 표현한다.
+- 불변 객체로 상태 전이를 표현하면 상태 전이 전/후가 명확하게 구분된다.
+  - 감사 로그나 테스트에서 "risk 평가 전 CREATED intent"와 "risk 평가 후 intent"를 안정적으로 비교할 수 있다.
+  - 기존 객체를 직접 수정할 때 생길 수 있는 예상치 못한 상태 변경 부작용을 줄인다.
+- 여러 흐름이 같은 intent를 참조하는 상황에서도 기존 객체가 변하지 않는다.
+  - 예를 들어 risk 평가 흐름이 새 `RISK_APPROVED` intent를 만들더라도, audit logging 흐름이 들고 있던 기존 intent는 계속 `CREATED` 상태로 남는다.
+  - 같은 객체 참조를 공유할 때 타이밍에 따라 status가 달라지는 동시성 문제를 줄일 수 있다.
+- `PreTradeRiskCheckService`는 계속 순수 risk 평가를 담당하고, intent 상태 전이는 별도 service에 둔다.
+- 결과의 `riskCheckResult.ruleResults`에는 기존처럼 상세 규칙별 판단 결과가 보존된다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :pre-trade-risk:test`
