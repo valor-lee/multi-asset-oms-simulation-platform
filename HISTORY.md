@@ -301,6 +301,31 @@
 
 - 실행 테스트: `./gradlew :pre-trade-risk:test`
 
+### 2026.05.15 slice
+
+생성된 `OrderIntent`를 저장하고 다시 조회할 수 있는 최소 저장소 인터페이스를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `OrderIntentRepository` 포트 추가
+  - `save(intent)`
+  - `findByIntentId(intentId)`
+  - `findByIdempotencyKey(idempotencyKey)`
+- `InMemoryOrderIntentRepository` 추가
+  - 현재 단계에서는 DB/JPA 없이 메모리 기반 저장소 인터페이스를 먼저 고정
+- `ManualOrderIntentService`, `RebalancingOrderIntentService`, `StrategyOrderIntentService`가 생성한 intent를 repository에 저장하도록 변경
+- manual intent 생성 서비스 저장 동작 테스트 추가
+- 인메모리 repository 조회 동작 테스트 추가
+
+#### 메모
+
+- 아직 영속화 구현은 붙이지 않고, 이후 JPA/DB 전환을 위해 application 포트와 in-memory adapter를 분리했다.
+- `idempotencyKey` 조회는 null 입력 시 `Optional.empty()`를 반환하도록 방어한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :intent-generation:test`
+
 ### 2026.05.09 slice
 
 pre-trade risk 평가 결과를 `OrderIntent` 상태 전이와 연결.
