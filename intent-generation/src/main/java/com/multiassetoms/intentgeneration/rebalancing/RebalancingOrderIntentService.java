@@ -1,6 +1,7 @@
 package com.multiassetoms.intentgeneration.rebalancing;
 
 import com.multiassetoms.intentgeneration.application.OrderIntentFactory;
+import com.multiassetoms.intentgeneration.application.OrderIntentRepository;
 import com.multiassetoms.intentgeneration.model.CreateOrderIntentCommand;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
 import com.multiassetoms.intentgeneration.model.OrderIntentSourceType;
@@ -10,13 +11,18 @@ import org.springframework.stereotype.Service;
 public class RebalancingOrderIntentService {
 
     private final OrderIntentFactory orderIntentFactory;
+    private final OrderIntentRepository orderIntentRepository;
 
-    public RebalancingOrderIntentService(OrderIntentFactory orderIntentFactory) {
+    public RebalancingOrderIntentService(
+            OrderIntentFactory orderIntentFactory,
+            OrderIntentRepository orderIntentRepository
+    ) {
         this.orderIntentFactory = orderIntentFactory;
+        this.orderIntentRepository = orderIntentRepository;
     }
 
     public OrderIntent create(RebalancingOrderIntentRequest request) {
-        return orderIntentFactory.create(new CreateOrderIntentCommand(
+        OrderIntent intent = orderIntentFactory.create(new CreateOrderIntentCommand(
                 request.portfolioId(),
                 request.instrumentId(),
                 OrderIntentSourceType.REBALANCING,
@@ -30,5 +36,6 @@ public class RebalancingOrderIntentService {
                 request.idempotencyKey(),
                 request.createdBy()
         ));
+        return orderIntentRepository.save(intent);
     }
 }
