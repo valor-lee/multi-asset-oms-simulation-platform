@@ -4,6 +4,8 @@ plugins {
 }
 
 dependencies {
+    // execution 은 risk 승인된 order intent 를 실제 order 로 변환한다.
+    api(project(":intent-generation"))
     // execution 계층은 시장데이터 모델을 입력으로 사용하므로 market-data 에 의존
     // 현재는 API 타입 노출을 열어 둔 상태지만, 구현이 쌓이면 implementation 축소를 검토
     api(project(":market-data"))
