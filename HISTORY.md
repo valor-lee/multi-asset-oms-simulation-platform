@@ -301,6 +301,26 @@
 
 - 실행 테스트: `./gradlew :pre-trade-risk:test`
 
+### 2026.05.17 slice
+
+pre-trade risk 평가로 상태 전이된 `OrderIntent`를 저장소에 반영.
+
+#### 이번 슬라이스에서 한 일
+
+- `PreTradeRiskOrderIntentService`가 `OrderIntentRepository`를 사용하도록 변경
+- risk 평가 결과로 만든 새 `OrderIntent` 스냅샷을 repository에 저장한 뒤 반환
+- risk 승인/거절 테스트에서 전이된 intent가 저장소에 반영되는지 검증
+
+#### 메모
+
+- 이전 slice에서는 risk 평가 결과가 새 `OrderIntent`로 반환되기만 했다.
+- 이번 slice부터는 `RISK_APPROVED` 또는 `RISK_REJECTED` 상태가 저장소에도 남아 이후 실행/조회 흐름에서 이어 사용할 수 있다.
+- 기존 원본 intent를 직접 변경하지 않고, 전이된 새 스냅샷을 저장하는 방식은 유지한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :pre-trade-risk:test`
+
 ### 2026.05.15 slice
 
 생성된 `OrderIntent`를 저장하고 다시 조회할 수 있는 최소 저장소 인터페이스를 추가.
