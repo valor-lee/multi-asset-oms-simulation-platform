@@ -301,6 +301,36 @@
 
 - 실행 테스트: `./gradlew :pre-trade-risk:test`
 
+## execution
+
+### 2026.05.17 slice
+
+risk 승인된 `OrderIntent`를 실제 주문 처리 대상인 `Order`로 변환하는 흐름을 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `Order`, `OrderStatus` 모델 추가
+- `OrderRepository` 포트와 `InMemoryOrderRepository` 추가
+  - `orderId` 기준 조회
+  - `intentId` 기준 조회
+- `OrderConversionService` 추가
+  - `RISK_APPROVED` intent만 order로 변환
+  - 변환된 order는 `CREATED` 상태로 저장
+  - 변환이 끝난 intent는 `CONVERTED_TO_ORDER` 상태로 저장
+- 이미 변환된 intent를 다시 요청하면 기존 order를 반환하도록 중복 변환을 방어
+- order 저장소와 변환 서비스 테스트 추가
+- `execution` 모듈이 `OrderIntent` 타입을 사용하도록 `intent-generation` 의존성 추가
+
+#### 메모
+
+- `OrderIntent`는 주문 의도이고, `Order`는 execution/OMS가 실제 주문 생명주기를 관리할 대상이다.
+- 같은 `intentId`로 이미 생성된 order가 있으면 새 order를 만들지 않는다.
+- 이번 slice는 execution simulator의 ACK/FILL 처리 전 단계로, risk 승인 intent를 실행 가능한 order로 넘기는 경계를 만든다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+
 ### 2026.05.17 slice
 
 pre-trade risk 평가로 상태 전이된 `OrderIntent`를 저장소에 반영.
