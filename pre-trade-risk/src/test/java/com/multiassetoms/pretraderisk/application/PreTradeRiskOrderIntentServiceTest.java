@@ -1,5 +1,6 @@
 package com.multiassetoms.pretraderisk.application;
 
+import com.multiassetoms.intentgeneration.infrastructure.InMemoryOrderIntentRepository;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
 import com.multiassetoms.intentgeneration.model.OrderIntentSourceType;
 import com.multiassetoms.intentgeneration.model.OrderIntentStatus;
@@ -26,7 +27,11 @@ class PreTradeRiskOrderIntentServiceTest {
 
     private final Clock fixedClock = Clock.fixed(Instant.parse("2026-05-09T00:00:00Z"), ZoneOffset.UTC);
     private final PreTradeRiskCheckService riskCheckService = new PreTradeRiskCheckService(fixedClock);
-    private final PreTradeRiskOrderIntentService service = new PreTradeRiskOrderIntentService(riskCheckService);
+    private final InMemoryOrderIntentRepository orderIntentRepository = new InMemoryOrderIntentRepository();
+    private final PreTradeRiskOrderIntentService service = new PreTradeRiskOrderIntentService(
+            riskCheckService,
+            orderIntentRepository
+    );
 
     @Test
     void transitionsCreatedIntentToRiskApprovedWhenRiskCheckApproves() {
@@ -44,6 +49,10 @@ class PreTradeRiskOrderIntentServiceTest {
         assertEquals(intent.createdAt(), result.intent().createdAt());
         assertEquals(Instant.parse("2026-05-09T00:00:00Z"), result.intent().updatedAt());
         assertEquals(intent.intentId(), result.riskCheckResult().intentId());
+        assertEquals(
+                OrderIntentStatus.RISK_APPROVED,
+                orderIntentRepository.findByIntentId(intent.intentId()).orElseThrow().status()
+        );
     }
 
     @Test
@@ -66,6 +75,10 @@ class PreTradeRiskOrderIntentServiceTest {
         assertEquals(OrderIntentStatus.RISK_REJECTED, result.intent().status());
         assertEquals(PreTradeRiskDecision.REJECTED, result.riskCheckResult().decision());
         assertEquals("requestedQty exceeds maxOrderQty", result.riskCheckResult().reason());
+        assertEquals(
+                OrderIntentStatus.RISK_REJECTED,
+                orderIntentRepository.findByIntentId(intent.intentId()).orElseThrow().status()
+        );
     }
 
     @Test

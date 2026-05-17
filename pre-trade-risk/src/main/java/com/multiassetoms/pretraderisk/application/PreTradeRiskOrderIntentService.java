@@ -1,5 +1,6 @@
 package com.multiassetoms.pretraderisk.application;
 
+import com.multiassetoms.intentgeneration.application.OrderIntentRepository;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
 import com.multiassetoms.intentgeneration.model.OrderIntentStatus;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
@@ -14,27 +15,32 @@ import org.springframework.stereotype.Service;
 public class PreTradeRiskOrderIntentService {
 
     private final PreTradeRiskCheckService riskCheckService;
+    private final OrderIntentRepository orderIntentRepository;
 
-    public PreTradeRiskOrderIntentService(PreTradeRiskCheckService riskCheckService) {
+    public PreTradeRiskOrderIntentService(
+            PreTradeRiskCheckService riskCheckService,
+            OrderIntentRepository orderIntentRepository
+    ) {
         this.riskCheckService = riskCheckService;
+        this.orderIntentRepository = orderIntentRepository;
     }
 
     /**
-     * 기본 risk check context로 order intent를 평가하고 risk 결과에 따른 다음 상태 intent를 반환한다.
+     * 기본 risk check context로 order intent를 평가하고 risk 결과에 따른 다음 상태 intent를 저장한다.
      *
      * @param intent pre-trade risk 평가 대상 order intent
-     * @return risk 평가 결과와 상태 전이된 새 order intent
+     * @return risk 평가 결과와 저장된 다음 상태 order intent
      */
     public PreTradeRiskOrderIntentResult evaluate(OrderIntent intent) {
         return evaluate(intent, PreTradeRiskCheckContext.empty());
     }
 
     /**
-     * 전달받은 risk check context로 order intent를 평가하고 risk 결과에 따른 다음 상태 intent를 반환한다.
+     * 전달받은 risk check context로 order intent를 평가하고 risk 결과에 따른 다음 상태 intent를 저장한다.
      *
      * @param intent pre-trade risk 평가 대상 order intent. CREATED 상태만 허용한다.
      * @param checkContext limit, exposure, open order, market, control 정보를 담은 risk 평가 context
-     * @return risk 평가 결과와 상태 전이된 새 order intent
+     * @return risk 평가 결과와 저장된 다음 상태 order intent
      */
     public PreTradeRiskOrderIntentResult evaluate(
             OrderIntent intent,
@@ -46,10 +52,10 @@ public class PreTradeRiskOrderIntentService {
                 PreTradeRiskCheckCommand.from(intent),
                 checkContext
         );
-        return new PreTradeRiskOrderIntentResult(
-                transition(intent, riskCheckResult),
-                riskCheckResult
-        );
+        OrderIntent transitionedIntent = transition(intent, riskCheckResult);
+        OrderIntent savedIntent = orderIntentRepository.save(transitionedIntent);
+
+        return new PreTradeRiskOrderIntentResult(savedIntent, riskCheckResult);
     }
 
     /**
