@@ -360,6 +360,34 @@ risk 승인된 `OrderIntent`를 실제 주문 처리 대상인 `Order`로 변환
 
 - 실행 테스트: `./gradlew :execution:test`
 
+### 2026.05.18 slice
+
+생성된 `Order`를 broker/exchange 전송 대상으로 표시하는 submission 상태 전이를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `OrderStatus.SENT` 추가
+- `OrderSubmissionService` 추가
+  - `CREATED` order만 `SENT` 상태로 전이
+  - `SENT` order에 대한 재요청은 기존 order를 반환
+  - 존재하지 않는 order id는 예외 처리
+- `OrderSubmissionException` 추가
+- order submit 상태 전이와 중복 submit 요청 테스트 추가
+- `OrderConversionService`의 public 변환 진입점을 `intentId` 기반으로 정리
+  - 저장소에서 최신 intent를 조회한 뒤 변환
+  - order는 있는데 intent가 없으면 정합성 오류로 보고 예외 처리
+
+#### 메모
+
+- 이번 slice는 `OrderConversionService`가 만든 `CREATED` order를 실제 실행 흐름의 다음 단계인 전송 상태로 넘기는 경계다.
+- 아직 외부 broker/exchange API 호출은 붙이지 않고, 전송 요청이 접수되었음을 내부 상태로 고정한다.
+- 이미 `SENT`인 order는 다시 저장하지 않아 최초 전송 시각인 `updatedAt`을 보존한다.
+- `OrderIntent` 객체를 직접 넘기는 public API는 테스트 편의에 가까워 제거하고, 실무 흐름처럼 id 기반 조회로 최신 상태 정합성을 확인한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+
 ### 2026.05.17 slice
 
 pre-trade risk 평가로 상태 전이된 `OrderIntent`를 저장소에 반영.

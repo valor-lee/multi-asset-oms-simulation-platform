@@ -31,6 +31,10 @@ public class OrderConversionService {
 
     /**
      * 저장소에서 intent를 조회한 뒤 order 변환을 수행한다.
+     * 상태별 처리:
+     * - RISK_APPROVED: order가 없으면 CREATED order를 만들고 intent를 CONVERTED_TO_ORDER로 저장
+     * - CONVERTED_TO_ORDER: 기존 order가 있으면 중복 요청으로 보고 기존 결과 반환
+     * - 그 외 상태: order 변환 대상이 아니므로 예외
      *
      * @param intentId order로 변환할 order intent id
      * @return 생성되었거나 이미 존재하는 order와 변환 완료 상태의 intent
@@ -41,14 +45,7 @@ public class OrderConversionService {
         return convert(intent);
     }
 
-    /**
-     * risk 승인된 intent를 order로 변환한다.
-     * 같은 intent로 이미 order가 만들어져 있으면 새 order를 만들지 않고 기존 order를 반환한다.
-     *
-     * @param intent order 변환 대상 intent
-     * @return 생성되었거나 이미 존재하는 order와 변환 완료 상태의 intent
-     */
-    public OrderConversionResult convert(OrderIntent intent) {
+    private OrderConversionResult convert(OrderIntent intent) {
         return orderRepository.findByIntentId(intent.intentId())
                 .map(order -> existingConversionResult(order, intent))
                 .orElseGet(() -> convertNew(intent));
@@ -58,10 +55,14 @@ public class OrderConversionService {
      * 중복 요청이나 재시도처럼 이미 order가 있는 경우 기존 order를 반환한다.
      * 저장소의 최신 intent가 아직 RISK_APPROVED이면 변환 완료 상태로 보정하고,
      * 이미 CONVERTED_TO_ORDER이면 updatedAt을 바꾸지 않도록 다시 저장하지 않는다.
+     * 상태별 처리:
+     * - RISK_APPROVED: 기존 order를 반환하고 intent만 CONVERTED_TO_ORDER로 보정 저장
+     * - CONVERTED_TO_ORDER: 기존 order와 최신 intent를 그대로 반환
+     * - 그 외 상태: 정합성이 맞지 않으므로 예외
      */
     private OrderConversionResult existingConversionResult(Order order, OrderIntent intent) {
         OrderIntent latestIntent = orderIntentRepository.findByIntentId(intent.intentId())
-                .orElse(intent);
+                .orElseThrow(() -> new OrderConversionException("order intent not found"));
         validateRiskApprovedOrConverted(latestIntent);
 
         if (latestIntent.status() == OrderIntentStatus.CONVERTED_TO_ORDER) {
@@ -72,6 +73,9 @@ public class OrderConversionService {
 
     /**
      * 아직 order가 없는 risk 승인 intent를 새 order로 변환한다.
+     * 상태별 처리:
+     * - RISK_APPROVED: CREATED order 생성 후 intent를 CONVERTED_TO_ORDER로 저장
+     * - 그 외 상태: 예외
      */
     private OrderConversionResult convertNew(OrderIntent intent) {
         validateRiskApproved(intent);
@@ -98,6 +102,7 @@ public class OrderConversionService {
 
     /**
      * 새 order를 만들 수 있는 최초 변환 상태인지 확인한다.
+     * 허용 상태: RISK_APPROVED
      */
     private void validateRiskApproved(OrderIntent intent) {
         if (intent.status() != OrderIntentStatus.RISK_APPROVED) {
@@ -107,6 +112,7 @@ public class OrderConversionService {
 
     /**
      * 기존 order 반환이 가능한 재시도 상태인지 확인한다.
+     * 허용 상태: RISK_APPROVED, CONVERTED_TO_ORDER
      */
     private void validateRiskApprovedOrConverted(OrderIntent intent) {
         if (intent.status() != OrderIntentStatus.RISK_APPROVED
@@ -119,6 +125,8 @@ public class OrderConversionService {
 
     /**
      * 원본 intent를 직접 바꾸지 않고 CONVERTED_TO_ORDER 상태의 새 스냅샷으로 저장한다.
+     * 상태별 처리:
+     * - 입력 intent의 현재 상태와 관계없이 호출자가 검증한 뒤 CONVERTED_TO_ORDER 스냅샷으로 저장
      */
     private OrderIntent markConverted(OrderIntent intent, Instant convertedAt) {
         return orderIntentRepository.save(new OrderIntent(
