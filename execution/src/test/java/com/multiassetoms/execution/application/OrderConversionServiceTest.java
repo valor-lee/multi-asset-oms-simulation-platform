@@ -54,6 +54,7 @@ class OrderConversionServiceTest {
         assertEquals(intent.timeInForce(), result.order().timeInForce());
         assertEquals(OrderStatus.CREATED, result.order().status());
         assertEquals(Instant.parse("2026-05-17T00:00:00Z"), result.order().createdAt());
+        assertEquals(result.order().createdAt(), result.intent().updatedAt());
 
         assertEquals(OrderIntentStatus.CONVERTED_TO_ORDER, result.intent().status());
         assertEquals(
@@ -76,6 +77,7 @@ class OrderConversionServiceTest {
 
         assertEquals(firstResult.order().orderId(), secondResult.order().orderId());
         assertEquals(OrderIntentStatus.CONVERTED_TO_ORDER, secondResult.intent().status());
+        assertEquals(firstResult.intent().updatedAt(), secondResult.intent().updatedAt());
     }
 
     @Test
@@ -91,6 +93,7 @@ class OrderConversionServiceTest {
 
         assertEquals(firstResult.order().orderId(), secondResult.order().orderId());
         assertEquals(OrderIntentStatus.CONVERTED_TO_ORDER, secondResult.intent().status());
+        assertEquals(firstResult.intent().updatedAt(), secondResult.intent().updatedAt());
     }
 
     @Test

@@ -13,6 +13,9 @@ import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -20,7 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ManualOrderIntentServiceTest {
 
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
-    private final OrderIntentFactory orderIntentFactory = new OrderIntentFactory(validator);
+    private final Clock fixedClock = Clock.fixed(Instant.parse("2026-04-25T00:00:00Z"), ZoneOffset.UTC);
+    private final OrderIntentFactory orderIntentFactory = new OrderIntentFactory(validator, fixedClock);
     private final InMemoryOrderIntentRepository repository = new InMemoryOrderIntentRepository();
     private final ManualOrderIntentService service = new ManualOrderIntentService(orderIntentFactory, repository);
 

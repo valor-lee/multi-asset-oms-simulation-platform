@@ -6,7 +6,6 @@ import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.intentgeneration.application.OrderIntentRepository;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
 import com.multiassetoms.intentgeneration.model.OrderIntentStatus;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -20,15 +19,7 @@ public class OrderConversionService {
     private final OrderIntentRepository orderIntentRepository;
     private final Clock clock;
 
-    @Autowired
     public OrderConversionService(
-            OrderRepository orderRepository,
-            OrderIntentRepository orderIntentRepository
-    ) {
-        this(orderRepository, orderIntentRepository, Clock.systemUTC());
-    }
-
-    OrderConversionService(
             OrderRepository orderRepository,
             OrderIntentRepository orderIntentRepository,
             Clock clock
@@ -65,15 +56,18 @@ public class OrderConversionService {
 
     /**
      * 중복 요청이나 재시도처럼 이미 order가 있는 경우 기존 order를 반환한다.
-     * intent가 아직 RISK_APPROVED이면 변환 완료 상태로 보정하고,
+     * 저장소의 최신 intent가 아직 RISK_APPROVED이면 변환 완료 상태로 보정하고,
      * 이미 CONVERTED_TO_ORDER이면 updatedAt을 바꾸지 않도록 다시 저장하지 않는다.
      */
     private OrderConversionResult existingConversionResult(Order order, OrderIntent intent) {
-        validateRiskApprovedOrConverted(intent);
-        if (intent.status() == OrderIntentStatus.CONVERTED_TO_ORDER) {
-            return new OrderConversionResult(order, intent);
+        OrderIntent latestIntent = orderIntentRepository.findByIntentId(intent.intentId())
+                .orElse(intent);
+        validateRiskApprovedOrConverted(latestIntent);
+
+        if (latestIntent.status() == OrderIntentStatus.CONVERTED_TO_ORDER) {
+            return new OrderConversionResult(order, latestIntent);
         }
-        return new OrderConversionResult(order, markConverted(intent));
+        return new OrderConversionResult(order, markConverted(latestIntent, Instant.now(clock)));
     }
 
     /**
@@ -82,7 +76,7 @@ public class OrderConversionService {
     private OrderConversionResult convertNew(OrderIntent intent) {
         validateRiskApproved(intent);
 
-        Instant now = Instant.now(clock);
+        Instant conversionTime = Instant.now(clock);
         Order order = orderRepository.save(new Order(
                 UUID.randomUUID(),
                 intent.intentId(),
@@ -94,10 +88,10 @@ public class OrderConversionService {
                 intent.limitPrice(),
                 intent.timeInForce(),
                 OrderStatus.CREATED,
-                now,
-                now
+                conversionTime,
+                conversionTime
         ));
-        OrderIntent convertedIntent = markConverted(intent);
+        OrderIntent convertedIntent = markConverted(intent, conversionTime);
 
         return new OrderConversionResult(order, convertedIntent);
     }
@@ -126,8 +120,7 @@ public class OrderConversionService {
     /**
      * 원본 intent를 직접 바꾸지 않고 CONVERTED_TO_ORDER 상태의 새 스냅샷으로 저장한다.
      */
-    private OrderIntent markConverted(OrderIntent intent) {
-        Instant now = Instant.now(clock);
+    private OrderIntent markConverted(OrderIntent intent, Instant convertedAt) {
         return orderIntentRepository.save(new OrderIntent(
                 intent.intentId(),
                 intent.portfolioId(),
@@ -144,7 +137,7 @@ public class OrderConversionService {
                 intent.idempotencyKey(),
                 intent.createdBy(),
                 intent.createdAt(),
-                now
+                convertedAt
         ));
     }
 }

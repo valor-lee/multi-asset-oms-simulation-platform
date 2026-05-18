@@ -25,11 +25,7 @@ public class OrderIntentFactory {
     private final Validator validator;
     private final Clock clock;
 
-    public OrderIntentFactory(Validator validator) {
-        this(validator, Clock.systemUTC());
-    }
-
-    OrderIntentFactory(Validator validator, Clock clock) {
+    public OrderIntentFactory(Validator validator, Clock clock) {
         this.validator = validator;
         this.clock = clock;
     }
