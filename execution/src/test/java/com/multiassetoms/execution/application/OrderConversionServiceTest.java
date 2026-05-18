@@ -72,8 +72,8 @@ class OrderConversionServiceTest {
         );
         orderIntentRepository.save(intent);
 
-        OrderConversionResult firstResult = service.convert(intent);
-        OrderConversionResult secondResult = service.convert(intent);
+        OrderConversionResult firstResult = service.convert(intent.intentId());
+        OrderConversionResult secondResult = service.convert(intent.intentId());
 
         assertEquals(firstResult.order().orderId(), secondResult.order().orderId());
         assertEquals(OrderIntentStatus.CONVERTED_TO_ORDER, secondResult.intent().status());
@@ -124,10 +124,11 @@ class OrderConversionServiceTest {
                 UUID.fromString("00000000-0000-0000-0000-000000000505"),
                 OrderIntentStatus.CREATED
         );
+        orderIntentRepository.save(intent);
 
         OrderConversionException exception = assertThrows(
                 OrderConversionException.class,
-                () -> service.convert(intent)
+                () -> service.convert(intent.intentId())
         );
 
         assertEquals("only RISK_APPROVED order intents can be converted to orders", exception.getMessage());
