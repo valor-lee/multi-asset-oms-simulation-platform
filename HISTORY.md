@@ -2,6 +2,35 @@
 
 프로젝트 slice 작업 이력을 한곳에 모아 기록한다.
 
+## cross-cutting
+
+### 2026.05.17 slice
+
+시간 의존 로직이 각 서비스 내부에서 직접 시스템 시간을 만들지 않도록 공통 `Clock` 주입 구조로 정리.
+
+#### 이번 슬라이스에서 한 일
+
+- `OmsCoreApplication`에 `Clock.systemUTC()` bean 추가
+- `OrderIntentFactory`가 `Clock`을 생성자 주입으로 받도록 변경
+- `PreTradeRiskCheckService`가 `Clock`을 생성자 주입으로 받도록 변경
+- `OrderConversionService`가 `Clock`을 생성자 주입으로 받도록 변경
+- 수동 주문 의도 생성 테스트에서 고정 clock을 사용하도록 변경
+- order 변환 시 생성된 `Order`와 `CONVERTED_TO_ORDER` intent가 같은 변환 시각을 사용하도록 정리
+- 중복 변환 요청에서 저장소의 최신 converted intent를 우선 사용해 `updatedAt`이 불필요하게 갱신되지 않도록 보강
+
+#### 메모
+
+- 생성/검사/변환 시각을 테스트에서 고정할 수 있어 시간 기반 검증이 안정적이다.
+- 운영 환경에서는 Spring bean으로 등록된 UTC clock을 공통으로 사용한다.
+- 서비스 내부에서 `Clock.systemUTC()`를 직접 호출하는 경로를 줄여 시간 정책을 한곳에서 관리하기 쉽게 했다.
+- 하나의 order conversion 동작은 하나의 기준 시각을 사용하므로, order 생성 시각과 intent 변환 완료 시각을 안정적으로 비교할 수 있다.
+- `Order.createdAt`과 `OrderIntent.updatedAt`이 같으면 "이 intent가 이 시점에 order로 전환됐다"는 관계가 로그, 테스트, 감사 추적에서 명확해진다.
+- 이후 `OrderConvertedEvent` 같은 이벤트를 추가할 때도 `convertedAt` 하나를 order, intent, event의 기준 시각으로 공유할 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew build`
+
 ## intent-generation
 
 ### 2026.04.25 slice

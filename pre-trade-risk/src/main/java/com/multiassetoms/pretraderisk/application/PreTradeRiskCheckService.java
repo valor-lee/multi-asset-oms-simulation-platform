@@ -30,16 +30,8 @@ public class PreTradeRiskCheckService {
     private final List<PreTradeRiskRule> rules;
     private final Clock clock;
 
-    public PreTradeRiskCheckService() {
-        this(defaultRules(), Clock.systemUTC());
-    }
-
-    PreTradeRiskCheckService(Clock clock) {
-        this(defaultRules(), clock);
-    }
-
-    PreTradeRiskCheckService(List<PreTradeRiskRule> rules, Clock clock) {
-        this.rules = List.copyOf(rules);
+    public PreTradeRiskCheckService(Clock clock) {
+        this.rules = defaultRules();
         this.clock = clock;
     }
 
