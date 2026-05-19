@@ -388,6 +388,58 @@ risk 승인된 `OrderIntent`를 실제 주문 처리 대상인 `Order`로 변환
 
 - 실행 테스트: `./gradlew :execution:test`
 
+### 2026.05.19 slice
+
+전송된 `Order`에 대한 broker/exchange ACK 또는 거절 응답 상태 전이를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `OrderStatus.ACKED`, `OrderStatus.REJECTED` 추가
+- `OrderAcknowledgementService` 추가
+  - `SENT` order를 `ACKED` 상태로 전이
+  - `SENT` order를 `REJECTED` 상태로 전이
+  - `ACKED` / `REJECTED` order에 대한 재요청은 기존 order를 반환
+  - 존재하지 않는 order id는 예외 처리
+- `OrderAcknowledgementException` 추가
+- order ack/reject 상태 전이와 중복 응답 요청 테스트 추가
+
+#### 메모
+
+- 이번 slice는 `SENT` 이후 broker/exchange가 주문을 접수했는지, 거절했는지를 내부 상태로 고정하는 단계다.
+- 아직 실제 외부 broker 응답 수신은 붙이지 않고, 응답 결과를 서비스 호출로 반영한다.
+- 이미 최종 응답 상태인 `ACKED` 또는 `REJECTED`는 다시 저장하지 않아 최초 응답 시각인 `updatedAt`을 보존한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+
+### 2026.05.19 slice
+
+ACK 이후 order 체결 수량을 누적 반영하는 fill 상태 전이를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `Order`에 `filledQuantity` 추가
+- `OrderStatus.PARTIALLY_FILLED`, `OrderStatus.FILLED` 추가
+- `OrderFillService` 추가
+  - `ACKED` order의 첫 체결을 반영
+  - `PARTIALLY_FILLED` order의 추가 체결을 누적
+  - 누적 체결 수량이 주문 수량보다 작으면 `PARTIALLY_FILLED`
+  - 누적 체결 수량이 주문 수량과 같으면 `FILLED`
+  - 주문 수량을 초과하는 체결은 예외 처리
+- `OrderFillException` 추가
+- partial fill, full fill, overfill, non-positive fill, 잘못된 상태 테스트 추가
+
+#### 메모
+
+- 이번 slice는 broker/exchange ACK 이후 실제 체결 이벤트를 내부 order 상태에 반영하는 단계다.
+- 아직 체결 id 기반 중복 체결 방지는 없으므로, 같은 fill 이벤트의 idempotency는 이후 execution report 모델에서 다룬다.
+- 기존 submission/acknowledgement 상태 전이에서는 `filledQuantity`를 그대로 보존한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+
 ### 2026.05.17 slice
 
 pre-trade risk 평가로 상태 전이된 `OrderIntent`를 저장소에 반영.

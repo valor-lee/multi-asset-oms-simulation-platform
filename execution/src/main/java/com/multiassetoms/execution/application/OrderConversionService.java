@@ -8,6 +8,7 @@ import com.multiassetoms.intentgeneration.model.OrderIntent;
 import com.multiassetoms.intentgeneration.model.OrderIntentStatus;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
@@ -89,6 +90,7 @@ public class OrderConversionService {
                 intent.side(),
                 intent.orderType(),
                 intent.requestedQty(),
+                BigDecimal.ZERO,
                 intent.limitPrice(),
                 intent.timeInForce(),
                 OrderStatus.CREATED,

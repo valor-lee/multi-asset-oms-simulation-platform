@@ -16,6 +16,7 @@ public record Order(
         OrderSide side,
         OrderType orderType,
         BigDecimal quantity,
+        BigDecimal filledQuantity,
         BigDecimal limitPrice,
         TimeInForce timeInForce,
         OrderStatus status,
