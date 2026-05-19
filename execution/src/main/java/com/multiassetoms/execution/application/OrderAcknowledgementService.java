@@ -84,6 +84,7 @@ public class OrderAcknowledgementService {
                 order.side(),
                 order.orderType(),
                 order.quantity(),
+                order.filledQuantity(),
                 order.limitPrice(),
                 order.timeInForce(),
                 nextStatus,

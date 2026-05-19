@@ -57,6 +57,7 @@ class InMemoryOrderRepositoryTest {
                 OrderSide.BUY,
                 OrderType.LIMIT,
                 new BigDecimal("10"),
+                BigDecimal.ZERO,
                 new BigDecimal("55000"),
                 TimeInForce.DAY,
                 OrderStatus.CREATED,

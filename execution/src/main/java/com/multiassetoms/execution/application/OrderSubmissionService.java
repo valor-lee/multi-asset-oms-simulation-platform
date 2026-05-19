@@ -62,6 +62,7 @@ public class OrderSubmissionService {
                 order.side(),
                 order.orderType(),
                 order.quantity(),
+                order.filledQuantity(),
                 order.limitPrice(),
                 order.timeInForce(),
                 OrderStatus.SENT,
