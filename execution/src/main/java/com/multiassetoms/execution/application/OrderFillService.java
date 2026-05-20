@@ -1,6 +1,7 @@
 package com.multiassetoms.execution.application;
 
 import com.multiassetoms.execution.model.Order;
+import com.multiassetoms.execution.model.OrderFillExecution;
 import com.multiassetoms.execution.model.OrderFillException;
 import com.multiassetoms.execution.model.OrderStatus;
 import org.springframework.stereotype.Service;
@@ -14,10 +15,16 @@ import java.util.UUID;
 public class OrderFillService {
 
     private final OrderRepository orderRepository;
+    private final OrderFillExecutionRepository fillExecutionRepository;
     private final Clock clock;
 
-    public OrderFillService(OrderRepository orderRepository, Clock clock) {
+    public OrderFillService(
+            OrderRepository orderRepository,
+            OrderFillExecutionRepository fillExecutionRepository,
+            Clock clock
+    ) {
         this.orderRepository = orderRepository;
+        this.fillExecutionRepository = fillExecutionRepository;
         this.clock = clock;
     }
 
@@ -34,6 +41,32 @@ public class OrderFillService {
      * @return 체결 수량과 상태가 갱신된 order
      */
     public Order fill(UUID orderId, BigDecimal fillQuantity) {
+        return fill(orderId, UUID.randomUUID(), fillQuantity);
+    }
+
+    /**
+     * broker/exchange 체결 이벤트를 idempotent하게 order에 반영한다.
+     * 상태별 처리:
+     * - ACKED: 첫 체결을 반영해 PARTIALLY_FILLED 또는 FILLED로 전이
+     * - PARTIALLY_FILLED: 추가 체결을 누적해 PARTIALLY_FILLED 또는 FILLED로 전이
+     * - CANCEL_REQUESTED: cancel-fill race condition을 허용해 추가 체결을 반영
+     * - 이미 처리한 fillExecutionId: 중복 이벤트로 보고 수량을 다시 누적하지 않음
+     * - 그 외 상태: 체결 반영 대상이 아니므로 예외
+     *
+     * @param orderId 체결을 반영할 order id
+     * @param fillExecutionId broker/exchange 체결 이벤트의 고유 id
+     * @param fillQuantity 이번에 추가로 체결된 수량
+     * @return 체결 수량과 상태가 갱신된 order
+     */
+    public Order fill(UUID orderId, UUID fillExecutionId, BigDecimal fillQuantity) {
+        validateFillExecutionId(fillExecutionId);
+        OrderFillExecution existingFillExecution =
+                fillExecutionRepository.findByFillExecutionId(fillExecutionId).orElse(null);
+
+        if (existingFillExecution != null) {
+            return duplicateFillResult(orderId, existingFillExecution);
+        }
+
         Order order = orderRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new OrderFillException("order not found"));
 
@@ -48,7 +81,7 @@ public class OrderFillService {
                 : OrderStatus.PARTIALLY_FILLED;
 
         Instant filledAt = Instant.now(clock);
-        return orderRepository.save(new Order(
+        Order filledOrder = orderRepository.save(new Order(
                 order.orderId(),
                 order.intentId(),
                 order.portfolioId(),
@@ -63,6 +96,28 @@ public class OrderFillService {
                 order.createdAt(),
                 filledAt
         ));
+
+        fillExecutionRepository.save(new OrderFillExecution(
+                fillExecutionId,
+                orderId,
+                fillQuantity,
+                filledAt
+        ));
+        return filledOrder;
+    }
+
+    private void validateFillExecutionId(UUID fillExecutionId) {
+        if (fillExecutionId == null) {
+            throw new OrderFillException("fillExecutionId is required");
+        }
+    }
+
+    private Order duplicateFillResult(UUID orderId, OrderFillExecution existingFillExecution) {
+        if (!existingFillExecution.orderId().equals(orderId)) {
+            throw new OrderFillException("fillExecutionId belongs to another order");
+        }
+        return orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new OrderFillException("order not found"));
     }
 
     private void validateFillable(Order order) {
