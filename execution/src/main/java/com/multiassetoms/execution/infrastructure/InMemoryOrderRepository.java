@@ -1,6 +1,6 @@
 package com.multiassetoms.execution.infrastructure;
 
-import com.multiassetoms.execution.application.OrderRepository;
+import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
 import org.springframework.stereotype.Repository;
 

@@ -1,6 +1,6 @@
 package com.multiassetoms.execution.infrastructure;
 
-import com.multiassetoms.execution.application.OrderExecutionEventRepository;
+import com.multiassetoms.execution.application.port.OrderExecutionEventRepository;
 import com.multiassetoms.execution.model.OrderExecutionEvent;
 import org.springframework.stereotype.Repository;
 

@@ -1,5 +1,7 @@
 package com.multiassetoms.execution.application;
 
+import com.multiassetoms.execution.application.port.OrderExecutionEventRepository;
+import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderCancellationException;
 import com.multiassetoms.execution.model.OrderExecutionEvent;
@@ -45,7 +47,7 @@ public class OrderCancellationService {
             return order;
         }
         validateCancelable(order);
-        return transitionOrder(order, OrderStatus.CANCEL_REQUESTED);
+        return transitionOrderOnly(order, OrderStatus.CANCEL_REQUESTED);
     }
 
     /**
@@ -76,7 +78,9 @@ public class OrderCancellationService {
      */
     public Order confirmCancel(UUID orderId, UUID eventId) {
         validateEventId(eventId);
-        OrderExecutionEvent existingEvent = eventRepository.findByEventId(eventId).orElse(null);
+        OrderExecutionEvent existingEvent = eventRepository.findByEventId(eventId)
+                .orElse(null);
+
         if (existingEvent != null) {
             return duplicateEventResult(orderId, existingEvent);
         }
@@ -100,17 +104,19 @@ public class OrderCancellationService {
     }
 
     private void validateCancelable(Order order) {
-        if (order.status() != OrderStatus.ACKED &&
-            order.status() != OrderStatus.PARTIALLY_FILLED) {
+        if (order.status() != OrderStatus.ACKED
+                && order.status() != OrderStatus.PARTIALLY_FILLED) {
             throw new OrderCancellationException(
-                    "only ACKED or PARTIALLY_FILLED orders can be canceled");
+                    "only ACKED or PARTIALLY_FILLED orders can be canceled"
+            );
         }
     }
 
     private void validateCancelRequested(Order order) {
         if (order.status() != OrderStatus.CANCEL_REQUESTED) {
             throw new OrderCancellationException(
-                    "only CANCEL_REQUESTED orders can be confirmed canceled");
+                    "only CANCEL_REQUESTED orders can be confirmed canceled"
+            );
         }
     }
 
@@ -130,7 +136,7 @@ public class OrderCancellationService {
         return findOrder(orderId);
     }
 
-    private Order transitionOrder(Order order, OrderStatus nextStatus) {
+    private Order transitionOrderOnly(Order order, OrderStatus nextStatus) {
         Instant transitionedAt = Instant.now(clock);
         return orderRepository.save(new Order(
                 order.orderId(),

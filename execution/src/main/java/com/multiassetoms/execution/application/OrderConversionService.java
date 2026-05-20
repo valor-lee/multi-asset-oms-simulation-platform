@@ -1,5 +1,6 @@
 package com.multiassetoms.execution.application;
 
+import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderConversionException;
 import com.multiassetoms.execution.model.OrderStatus;
@@ -128,7 +129,8 @@ public class OrderConversionService {
     /**
      * 원본 intent를 직접 바꾸지 않고 CONVERTED_TO_ORDER 상태의 새 스냅샷으로 저장한다.
      * 상태별 처리:
-     * - 입력 intent의 현재 상태와 관계없이 호출자가 검증한 뒤 CONVERTED_TO_ORDER 스냅샷으로 저장
+     * - 입력 intent의 현재 상태와 관계없이 호출자가 검증한 뒤
+     *   CONVERTED_TO_ORDER 스냅샷으로 저장
      */
     private OrderIntent markConverted(OrderIntent intent, Instant convertedAt) {
         return orderIntentRepository.save(new OrderIntent(

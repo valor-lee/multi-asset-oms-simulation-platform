@@ -115,7 +115,10 @@ class OrderConversionServiceTest {
 
         assertEquals(firstResult.order().orderId(), secondResult.order().orderId());
         assertEquals(alreadyConvertedIntent.updatedAt(), secondResult.intent().updatedAt());
-        assertEquals(alreadyConvertedIntent.updatedAt(), orderIntentRepository.findByIntentId(intent.intentId()).orElseThrow().updatedAt());
+        assertEquals(
+                alreadyConvertedIntent.updatedAt(),
+                orderIntentRepository.findByIntentId(intent.intentId()).orElseThrow().updatedAt()
+        );
     }
 
     @Test

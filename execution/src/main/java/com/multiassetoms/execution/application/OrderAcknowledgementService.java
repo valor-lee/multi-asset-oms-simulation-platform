@@ -1,5 +1,7 @@
 package com.multiassetoms.execution.application;
 
+import com.multiassetoms.execution.application.port.OrderExecutionEventRepository;
+import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderAcknowledgementException;
 import com.multiassetoms.execution.model.OrderExecutionEvent;
@@ -57,7 +59,9 @@ public class OrderAcknowledgementService {
     public Order acknowledge(UUID orderId, UUID eventId) {
         validateEventId(eventId);
 
-        OrderExecutionEvent existingEvent = eventRepository.findByEventId(eventId).orElse(null);
+        OrderExecutionEvent existingEvent = eventRepository.findByEventId(eventId)
+                .orElse(null);
+
         if (existingEvent != null) {
             return duplicateEventResult(orderId, existingEvent, OrderExecutionEventType.ACKNOWLEDGED);
         }
@@ -102,7 +106,9 @@ public class OrderAcknowledgementService {
     public Order reject(UUID orderId, UUID eventId) {
         validateEventId(eventId);
 
-        OrderExecutionEvent existingEvent = eventRepository.findByEventId(eventId).orElse(null);
+        OrderExecutionEvent existingEvent = eventRepository.findByEventId(eventId)
+                .orElse(null);
+
         if (existingEvent != null) {
             return duplicateEventResult(orderId, existingEvent, OrderExecutionEventType.REJECTED);
         }
@@ -125,7 +131,9 @@ public class OrderAcknowledgementService {
 
     private void validateSent(Order order) {
         if (order.status() != OrderStatus.SENT) {
-            throw new OrderAcknowledgementException("only SENT orders can be acknowledged or rejected");
+            throw new OrderAcknowledgementException(
+                    "only SENT orders can be acknowledged or rejected"
+            );
         }
     }
 
