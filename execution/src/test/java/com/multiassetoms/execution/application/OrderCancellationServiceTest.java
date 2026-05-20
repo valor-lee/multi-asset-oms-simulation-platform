@@ -1,8 +1,11 @@
 package com.multiassetoms.execution.application;
 
 import com.multiassetoms.execution.infrastructure.InMemoryOrderRepository;
+import com.multiassetoms.execution.infrastructure.InMemoryOrderExecutionEventRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderCancellationException;
+import com.multiassetoms.execution.model.OrderExecutionEvent;
+import com.multiassetoms.execution.model.OrderExecutionEventType;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.intentgeneration.model.OrderType;
@@ -22,7 +25,13 @@ class OrderCancellationServiceTest {
 
     private final Clock fixedClock = Clock.fixed(Instant.parse("2026-05-20T00:00:00Z"), ZoneOffset.UTC);
     private final InMemoryOrderRepository orderRepository = new InMemoryOrderRepository();
-    private final OrderCancellationService service = new OrderCancellationService(orderRepository, fixedClock);
+    private final InMemoryOrderExecutionEventRepository eventRepository =
+            new InMemoryOrderExecutionEventRepository();
+    private final OrderCancellationService service = new OrderCancellationService(
+            orderRepository,
+            eventRepository,
+            fixedClock
+    );
 
     @Test
     void requestsCancelForAckedOrder() {
@@ -105,6 +114,73 @@ class OrderCancellationServiceTest {
     }
 
     @Test
+    void returnsCurrentOrderWhenCancelConfirmationEventIsRepeated() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001208"),
+                OrderStatus.CANCEL_REQUESTED,
+                new BigDecimal("4")
+        );
+        UUID eventId = UUID.fromString("00000000-0000-0000-0000-000000001308");
+        orderRepository.save(order);
+
+        Order firstResult = service.confirmCancel(order.orderId(), eventId);
+        Order secondResult = service.confirmCancel(order.orderId(), eventId);
+
+        assertEquals(firstResult, secondResult);
+        assertEquals(OrderStatus.CANCELED, secondResult.status());
+        assertEquals(firstResult.updatedAt(), secondResult.updatedAt());
+    }
+
+    @Test
+    void rejectsCancelConfirmationEventIdAlreadyUsedByAnotherOrder() {
+        Order firstOrder = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001209"),
+                OrderStatus.CANCEL_REQUESTED,
+                BigDecimal.ZERO
+        );
+        Order secondOrder = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001210"),
+                OrderStatus.CANCEL_REQUESTED,
+                BigDecimal.ZERO
+        );
+        UUID eventId = UUID.fromString("00000000-0000-0000-0000-000000001309");
+        orderRepository.save(firstOrder);
+        orderRepository.save(secondOrder);
+
+        service.confirmCancel(firstOrder.orderId(), eventId);
+        OrderCancellationException exception = assertThrows(
+                OrderCancellationException.class,
+                () -> service.confirmCancel(secondOrder.orderId(), eventId)
+        );
+
+        assertEquals("eventId belongs to another order", exception.getMessage());
+    }
+
+    @Test
+    void rejectsCancelConfirmationEventIdAlreadyUsedByAnotherExecutionEventType() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001212"),
+                OrderStatus.CANCEL_REQUESTED,
+                BigDecimal.ZERO
+        );
+        UUID eventId = UUID.fromString("00000000-0000-0000-0000-000000001312");
+        orderRepository.save(order);
+        eventRepository.save(new OrderExecutionEvent(
+                eventId,
+                order.orderId(),
+                OrderExecutionEventType.ACKNOWLEDGED,
+                Instant.parse("2026-05-19T00:00:00Z")
+        ));
+
+        OrderCancellationException exception = assertThrows(
+                OrderCancellationException.class,
+                () -> service.confirmCancel(order.orderId(), eventId)
+        );
+
+        assertEquals("eventId belongs to another execution event type", exception.getMessage());
+    }
+
+    @Test
     void rejectsCancelRequestForFilledOrder() {
         Order order = createOrder(
                 UUID.fromString("00000000-0000-0000-0000-000000001206"),
@@ -146,6 +222,23 @@ class OrderCancellationServiceTest {
         );
 
         assertEquals("order not found", exception.getMessage());
+    }
+
+    @Test
+    void rejectsMissingCancelConfirmationEventId() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001211"),
+                OrderStatus.CANCEL_REQUESTED,
+                BigDecimal.ZERO
+        );
+        orderRepository.save(order);
+
+        OrderCancellationException exception = assertThrows(
+                OrderCancellationException.class,
+                () -> service.confirmCancel(order.orderId(), null)
+        );
+
+        assertEquals("eventId is required", exception.getMessage());
     }
 
     private Order createOrder(UUID orderId, OrderStatus status, BigDecimal filledQuantity) {
