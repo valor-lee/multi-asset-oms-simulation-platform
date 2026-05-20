@@ -119,7 +119,22 @@ class OrderFillServiceTest {
                 () -> service.fill(order.orderId(), new BigDecimal("1"))
         );
 
-        assertEquals("only ACKED or PARTIALLY_FILLED orders can be filled", exception.getMessage());
+        assertEquals("only ACKED, PARTIALLY_FILLED, or CANCEL_REQUESTED orders can be filled", exception.getMessage());
+    }
+
+    @Test
+    void fillsCancelRequestedOrderWhenFillArrivesBeforeCancelConfirmation() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001007"),
+                OrderStatus.CANCEL_REQUESTED,
+                new BigDecimal("4")
+        );
+        orderRepository.save(order);
+
+        Order filledOrder = service.fill(order.orderId(), new BigDecimal("6"));
+
+        assertEquals(OrderStatus.FILLED, filledOrder.status());
+        assertEquals(new BigDecimal("10"), filledOrder.filledQuantity());
     }
 
     @Test

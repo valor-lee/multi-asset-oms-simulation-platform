@@ -26,6 +26,7 @@ public class OrderFillService {
      * 상태별 처리:
      * - ACKED: 첫 체결을 반영해 PARTIALLY_FILLED 또는 FILLED로 전이
      * - PARTIALLY_FILLED: 추가 체결을 누적해 PARTIALLY_FILLED 또는 FILLED로 전이
+     * - CANCEL_REQUESTED: cancel-fill race condition을 허용해 추가 체결을 반영
      * - 그 외 상태: 체결 반영 대상이 아니므로 예외
      *
      * @param orderId 체결을 반영할 order id
@@ -65,8 +66,10 @@ public class OrderFillService {
     }
 
     private void validateFillable(Order order) {
-        if (order.status() != OrderStatus.ACKED && order.status() != OrderStatus.PARTIALLY_FILLED) {
-            throw new OrderFillException("only ACKED or PARTIALLY_FILLED orders can be filled");
+        if (order.status() != OrderStatus.ACKED
+                && order.status() != OrderStatus.PARTIALLY_FILLED
+                && order.status() != OrderStatus.CANCEL_REQUESTED) {
+            throw new OrderFillException("only ACKED, PARTIALLY_FILLED, or CANCEL_REQUESTED orders can be filled");
         }
     }
 
