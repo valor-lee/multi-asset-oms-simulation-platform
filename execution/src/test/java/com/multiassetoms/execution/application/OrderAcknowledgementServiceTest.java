@@ -1,6 +1,7 @@
 package com.multiassetoms.execution.application;
 
 import com.multiassetoms.execution.infrastructure.InMemoryOrderRepository;
+import com.multiassetoms.execution.infrastructure.InMemoryOrderExecutionEventRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderAcknowledgementException;
 import com.multiassetoms.execution.model.OrderStatus;
@@ -22,7 +23,13 @@ class OrderAcknowledgementServiceTest {
 
     private final Clock fixedClock = Clock.fixed(Instant.parse("2026-05-19T00:00:00Z"), ZoneOffset.UTC);
     private final InMemoryOrderRepository orderRepository = new InMemoryOrderRepository();
-    private final OrderAcknowledgementService service = new OrderAcknowledgementService(orderRepository, fixedClock);
+    private final InMemoryOrderExecutionEventRepository eventRepository =
+            new InMemoryOrderExecutionEventRepository();
+    private final OrderAcknowledgementService service = new OrderAcknowledgementService(
+            orderRepository,
+            eventRepository,
+            fixedClock
+    );
 
     @Test
     void acknowledgesSentOrderAndStoresAckedStatus() {
@@ -52,6 +59,23 @@ class OrderAcknowledgementServiceTest {
         Order secondResult = service.acknowledge(firstResult.orderId());
 
         assertEquals(firstResult, secondResult);
+        assertEquals(firstResult.updatedAt(), secondResult.updatedAt());
+    }
+
+    @Test
+    void returnsCurrentOrderWhenAcknowledgeEventIsRepeated() {
+        Order order = order(
+                UUID.fromString("00000000-0000-0000-0000-000000000806"),
+                OrderStatus.SENT
+        );
+        UUID eventId = UUID.fromString("00000000-0000-0000-0000-000000000906");
+        orderRepository.save(order);
+
+        Order firstResult = service.acknowledge(order.orderId(), eventId);
+        Order secondResult = service.acknowledge(order.orderId(), eventId);
+
+        assertEquals(firstResult, secondResult);
+        assertEquals(OrderStatus.ACKED, secondResult.status());
         assertEquals(firstResult.updatedAt(), secondResult.updatedAt());
     }
 
@@ -87,6 +111,64 @@ class OrderAcknowledgementServiceTest {
     }
 
     @Test
+    void returnsCurrentOrderWhenRejectEventIsRepeated() {
+        Order order = order(
+                UUID.fromString("00000000-0000-0000-0000-000000000807"),
+                OrderStatus.SENT
+        );
+        UUID eventId = UUID.fromString("00000000-0000-0000-0000-000000000907");
+        orderRepository.save(order);
+
+        Order firstResult = service.reject(order.orderId(), eventId);
+        Order secondResult = service.reject(order.orderId(), eventId);
+
+        assertEquals(firstResult, secondResult);
+        assertEquals(OrderStatus.REJECTED, secondResult.status());
+        assertEquals(firstResult.updatedAt(), secondResult.updatedAt());
+    }
+
+    @Test
+    void rejectsEventIdAlreadyUsedByAnotherOrder() {
+        Order firstOrder = order(
+                UUID.fromString("00000000-0000-0000-0000-000000000808"),
+                OrderStatus.SENT
+        );
+        Order secondOrder = order(
+                UUID.fromString("00000000-0000-0000-0000-000000000809"),
+                OrderStatus.SENT
+        );
+        UUID eventId = UUID.fromString("00000000-0000-0000-0000-000000000908");
+        orderRepository.save(firstOrder);
+        orderRepository.save(secondOrder);
+
+        service.acknowledge(firstOrder.orderId(), eventId);
+        OrderAcknowledgementException exception = assertThrows(
+                OrderAcknowledgementException.class,
+                () -> service.acknowledge(secondOrder.orderId(), eventId)
+        );
+
+        assertEquals("eventId belongs to another order", exception.getMessage());
+    }
+
+    @Test
+    void rejectsEventIdAlreadyUsedByAnotherExecutionEventType() {
+        Order order = order(
+                UUID.fromString("00000000-0000-0000-0000-000000000810"),
+                OrderStatus.SENT
+        );
+        UUID eventId = UUID.fromString("00000000-0000-0000-0000-000000000910");
+        orderRepository.save(order);
+
+        service.acknowledge(order.orderId(), eventId);
+        OrderAcknowledgementException exception = assertThrows(
+                OrderAcknowledgementException.class,
+                () -> service.reject(order.orderId(), eventId)
+        );
+
+        assertEquals("eventId belongs to another execution event type", exception.getMessage());
+    }
+
+    @Test
     void rejectsAcknowledgeForNonSentOrder() {
         Order order = order(
                 UUID.fromString("00000000-0000-0000-0000-000000000805"),
@@ -110,6 +192,22 @@ class OrderAcknowledgementServiceTest {
         );
 
         assertEquals("order not found", exception.getMessage());
+    }
+
+    @Test
+    void rejectsMissingEventId() {
+        Order order = order(
+                UUID.fromString("00000000-0000-0000-0000-000000000811"),
+                OrderStatus.SENT
+        );
+        orderRepository.save(order);
+
+        OrderAcknowledgementException exception = assertThrows(
+                OrderAcknowledgementException.class,
+                () -> service.acknowledge(order.orderId(), null)
+        );
+
+        assertEquals("eventId is required", exception.getMessage());
     }
 
     private Order order(UUID orderId, OrderStatus status) {

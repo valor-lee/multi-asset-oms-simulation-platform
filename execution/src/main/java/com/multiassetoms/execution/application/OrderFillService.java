@@ -1,5 +1,7 @@
 package com.multiassetoms.execution.application;
 
+import com.multiassetoms.execution.application.port.OrderFillExecutionRepository;
+import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderFillExecution;
 import com.multiassetoms.execution.model.OrderFillException;
@@ -124,7 +126,9 @@ public class OrderFillService {
         if (order.status() != OrderStatus.ACKED
                 && order.status() != OrderStatus.PARTIALLY_FILLED
                 && order.status() != OrderStatus.CANCEL_REQUESTED) {
-            throw new OrderFillException("only ACKED, PARTIALLY_FILLED, or CANCEL_REQUESTED orders can be filled");
+            throw new OrderFillException(
+                    "only ACKED, PARTIALLY_FILLED, or CANCEL_REQUESTED orders can be filled"
+            );
         }
     }
 
@@ -136,9 +140,8 @@ public class OrderFillService {
 
     private void validateNotOverfilled(Order order, BigDecimal newFilledQuantity) {
         if (newFilledQuantity.compareTo(order.quantity()) > 0) {
-            /**
-             * TODO: 이후 DB/영속화가 들어오면 fill event 저장과 order 상태 갱신을 하나의 transaction으로 묶음
-             */
+            // TODO: 이후 DB/영속화가 들어오면 fill event 저장과 order 상태 갱신을
+            // 하나의 transaction으로 묶음.
             throw new OrderFillException("filled quantity exceeds order quantity");
         }
     }

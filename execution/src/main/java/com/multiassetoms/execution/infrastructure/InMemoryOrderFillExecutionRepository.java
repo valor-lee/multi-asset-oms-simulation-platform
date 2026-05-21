@@ -1,6 +1,6 @@
 package com.multiassetoms.execution.infrastructure;
 
-import com.multiassetoms.execution.application.OrderFillExecutionRepository;
+import com.multiassetoms.execution.application.port.OrderFillExecutionRepository;
 import com.multiassetoms.execution.model.OrderFillExecution;
 import org.springframework.stereotype.Repository;
 
