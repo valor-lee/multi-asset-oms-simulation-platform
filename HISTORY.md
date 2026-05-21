@@ -330,6 +330,38 @@
 
 - 실행 테스트: `./gradlew :pre-trade-risk:test`
 
+## post-trade
+
+### 2026.05.21 slice
+
+execution에서 완료된 order를 post-trade trade로 캡처하는 기본 흐름을 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `Trade`, `TradeStatus` 모델 추가
+  - order, intent, portfolio, instrument, side, quantity, capture 시각 기록
+- `TradeRepository` 포트와 `InMemoryTradeRepository` 추가
+  - `tradeId` 기준 조회
+  - `orderId` 기준 조회
+- `TradeCaptureService` 추가
+  - `FILLED` order는 전체 체결 수량을 trade로 캡처
+  - `CANCELED` order는 체결 수량이 있으면 부분 체결 trade로 캡처
+  - 이미 캡처된 order는 기존 trade를 반환해 중복 capture를 방어
+  - 체결 수량이 없는 canceled order, open order, missing order는 예외 처리
+- trade capture 서비스 테스트와 in-memory trade repository 테스트 추가
+
+#### 메모
+
+- execution의 `Order`는 주문 생명주기 상태를 관리하고, post-trade의 `Trade`는 실제 체결된 거래 결과를 관리한다.
+- 부분 체결 후 취소된 order도 체결된 수량만큼은 post-trade 대상이므로 trade로 캡처한다.
+- 아직 체결 가격/수수료/결제일은 모델링하지 않고, 다음 slice에서 average fill price 또는 settlement workflow로 확장할 수 있게 최소 trade 경계를 만든다.
+- average fill price는 여러 체결 이벤트가 다른 가격으로 나뉘어 들어왔을 때 수량 가중 평균 체결가를 계산하는 값이다.
+- settlement workflow는 캡처된 trade를 기준으로 수수료/세금, 현금/자산 이동, 결제일, 최종 정산 완료 상태를 관리하는 후처리 흐름이다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+
 ## execution
 
 ### 2026.05.17 slice
