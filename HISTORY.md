@@ -449,6 +449,33 @@ execution fill event의 가격을 저장하고, post-trade trade capture 시 평
 - 실행 테스트: `./gradlew :execution:test`
 - 실행 테스트: `./gradlew :post-trade:test`
 
+### 2026.05.23 slice
+
+settled trade의 총 체결금액을 cash ledger에 반영하고, portfolio별 현재 현금 잔액을 조회하는 기본 흐름을 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `CashLedgerEntry`, `CashLedgerException` 추가
+- `CashLedgerRepository` 포트와 `InMemoryCashLedgerRepository` 추가
+  - `entryId` 기준 조회
+  - `tradeId` 기준 조회
+  - portfolio 기준 현재 cash 조회
+- `CashLedgerService` 추가
+  - `SETTLED` trade만 cash ledger에 posting
+  - BUY trade는 음수 금액, SELL trade는 양수 금액으로 cash delta 기록
+  - 이미 posting된 trade는 기존 ledger entry를 반환해 중복 posting을 방어
+  - `grossNotional`이 없는 trade는 현금 반영 금액을 알 수 없으므로 거절
+- cash ledger posting 서비스 테스트와 in-memory cash ledger repository 테스트 추가
+
+#### 메모
+
+- cash ledger는 position ledger와 함께 settlement 이후 실제 보유 수량과 현금 변화를 조회하기 위한 원장 역할을 한다.
+- 이번 slice는 순수 거래대금만 반영하며, 수수료/세금/환전/통화별 잔액은 이후 별도 slice에서 확장한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+
 ## execution
 
 ### 2026.05.17 slice
