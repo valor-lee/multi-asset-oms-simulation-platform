@@ -89,6 +89,7 @@ public class TradeCaptureService {
                 order.filledQuantity(),
                 TradeStatus.CAPTURED,
                 capturedAt,
+                null,
                 capturedAt
         );
     }

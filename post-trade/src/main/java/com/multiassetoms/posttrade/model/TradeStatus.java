@@ -1,5 +1,7 @@
 package com.multiassetoms.posttrade.model;
 
 public enum TradeStatus {
-    CAPTURED
+    CAPTURED,
+    SETTLEMENT_PENDING,
+    SETTLED
 }
