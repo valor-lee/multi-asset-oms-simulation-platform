@@ -66,6 +66,7 @@ class InMemoryTradeRepositoryTest {
                 new BigDecimal("10"),
                 TradeStatus.CAPTURED,
                 capturedAt,
+                null,
                 capturedAt
         );
     }

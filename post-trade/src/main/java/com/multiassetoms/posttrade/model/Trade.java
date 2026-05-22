@@ -16,6 +16,7 @@ public record Trade(
         BigDecimal quantity,
         TradeStatus status,
         Instant capturedAt,
+        Instant settledAt,
         Instant updatedAt
 ) {
 }
