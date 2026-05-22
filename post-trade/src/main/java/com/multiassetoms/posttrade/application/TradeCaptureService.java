@@ -1,7 +1,9 @@
 package com.multiassetoms.posttrade.application;
 
+import com.multiassetoms.execution.application.port.OrderFillExecutionRepository;
 import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
+import com.multiassetoms.execution.model.OrderFillExecution;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.posttrade.application.port.TradeRepository;
 import com.multiassetoms.posttrade.model.Trade;
@@ -10,23 +12,28 @@ import com.multiassetoms.posttrade.model.TradeStatus;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 public class TradeCaptureService {
 
     private final OrderRepository orderRepository;
+    private final OrderFillExecutionRepository fillExecutionRepository;
     private final TradeRepository tradeRepository;
     private final Clock clock;
 
     public TradeCaptureService(
             OrderRepository orderRepository,
+            OrderFillExecutionRepository fillExecutionRepository,
             TradeRepository tradeRepository,
             Clock clock
     ) {
         this.orderRepository = orderRepository;
+        this.fillExecutionRepository = fillExecutionRepository;
         this.tradeRepository = tradeRepository;
         this.clock = clock;
     }
@@ -79,6 +86,7 @@ public class TradeCaptureService {
     }
 
     private Trade toTrade(Order order, Instant capturedAt) {
+        FillPriceSummary fillPriceSummary = summarizeFillPrices(order);
         return new Trade(
                 UUID.randomUUID(),
                 order.orderId(),
@@ -87,10 +95,50 @@ public class TradeCaptureService {
                 order.instrumentId(),
                 order.side(),
                 order.filledQuantity(),
+                fillPriceSummary.averageFillPrice(),
+                fillPriceSummary.grossNotional(),
                 TradeStatus.CAPTURED,
                 capturedAt,
                 null,
                 capturedAt
         );
+    }
+
+    private FillPriceSummary summarizeFillPrices(Order order) {
+        List<OrderFillExecution> fillExecutions = fillExecutionRepository.findByOrderId(order.orderId());
+        if (fillExecutions.isEmpty()) {
+            return FillPriceSummary.empty();
+        }
+
+        BigDecimal pricedQuantity = BigDecimal.ZERO;
+        BigDecimal grossNotional = BigDecimal.ZERO;
+        for (OrderFillExecution fillExecution : fillExecutions) {
+            if (fillExecution.fillPrice() == null) {
+                continue;
+            }
+            pricedQuantity = pricedQuantity.add(fillExecution.fillQuantity());
+            grossNotional = grossNotional.add(
+                    fillExecution.fillQuantity().multiply(fillExecution.fillPrice())
+            );
+        }
+
+        if (pricedQuantity.compareTo(order.filledQuantity()) != 0) {
+            return FillPriceSummary.empty();
+        }
+
+        return new FillPriceSummary(
+                grossNotional.divide(pricedQuantity, 10, RoundingMode.HALF_UP),
+                grossNotional
+        );
+    }
+
+    private record FillPriceSummary(
+            BigDecimal averageFillPrice,
+            BigDecimal grossNotional
+    ) {
+
+        private static FillPriceSummary empty() {
+            return new FillPriceSummary(null, null);
+        }
     }
 }
