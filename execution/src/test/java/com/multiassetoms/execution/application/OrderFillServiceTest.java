@@ -98,6 +98,26 @@ class OrderFillServiceTest {
     }
 
     @Test
+    void storesFillPriceWhenFillPriceIsProvided() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001012"),
+                OrderStatus.ACKED,
+                BigDecimal.ZERO
+        );
+        UUID fillExecutionId = UUID.fromString("00000000-0000-0000-0000-000000002003");
+        orderRepository.save(order);
+
+        service.fill(order.orderId(), fillExecutionId, new BigDecimal("4"), new BigDecimal("55000"));
+
+        assertEquals(
+                new BigDecimal("55000"),
+                fillExecutionRepository.findByFillExecutionId(fillExecutionId)
+                        .orElseThrow()
+                        .fillPrice()
+        );
+    }
+
+    @Test
     void rejectsFillExecutionIdAlreadyUsedByAnotherOrder() {
         Order firstOrder = createOrder(
                 UUID.fromString("00000000-0000-0000-0000-000000001009"),
@@ -154,6 +174,28 @@ class OrderFillServiceTest {
         );
 
         assertEquals("fillQuantity must be greater than zero", exception.getMessage());
+    }
+
+    @Test
+    void rejectsNonPositiveFillPrice() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001013"),
+                OrderStatus.ACKED,
+                BigDecimal.ZERO
+        );
+        orderRepository.save(order);
+
+        OrderFillException exception = assertThrows(
+                OrderFillException.class,
+                () -> service.fill(
+                        order.orderId(),
+                        UUID.fromString("00000000-0000-0000-0000-000000002004"),
+                        new BigDecimal("1"),
+                        BigDecimal.ZERO
+                )
+        );
+
+        assertEquals("fillPrice must be greater than zero", exception.getMessage());
     }
 
     @Test

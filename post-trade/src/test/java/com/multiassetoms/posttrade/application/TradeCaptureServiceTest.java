@@ -1,7 +1,9 @@
 package com.multiassetoms.posttrade.application;
 
+import com.multiassetoms.execution.infrastructure.InMemoryOrderFillExecutionRepository;
 import com.multiassetoms.execution.infrastructure.InMemoryOrderRepository;
 import com.multiassetoms.execution.model.Order;
+import com.multiassetoms.execution.model.OrderFillExecution;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.intentgeneration.model.OrderType;
@@ -28,9 +30,12 @@ class TradeCaptureServiceTest {
             ZoneOffset.UTC
     );
     private final InMemoryOrderRepository orderRepository = new InMemoryOrderRepository();
+    private final InMemoryOrderFillExecutionRepository fillExecutionRepository =
+            new InMemoryOrderFillExecutionRepository();
     private final InMemoryTradeRepository tradeRepository = new InMemoryTradeRepository();
     private final TradeCaptureService service = new TradeCaptureService(
             orderRepository,
+            fillExecutionRepository,
             tradeRepository,
             fixedClock
     );
@@ -52,9 +57,45 @@ class TradeCaptureServiceTest {
         assertEquals(order.instrumentId(), trade.instrumentId());
         assertEquals(order.side(), trade.side());
         assertEquals(new BigDecimal("10"), trade.quantity());
+        assertEquals(null, trade.averageFillPrice());
+        assertEquals(null, trade.grossNotional());
         assertEquals(TradeStatus.CAPTURED, trade.status());
         assertEquals(Instant.parse("2026-05-21T01:00:00Z"), trade.capturedAt());
         assertEquals(trade, tradeRepository.findByOrderId(order.orderId()).orElseThrow());
+    }
+
+    @Test
+    void capturesAverageFillPriceAndGrossNotionalWhenAllFillPricesExist() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000005007"),
+                OrderStatus.FILLED,
+                new BigDecimal("10")
+        );
+        orderRepository.save(order);
+        saveFillExecution(order.orderId(), "00000000-0000-0000-0000-000000005201", "4", "55000");
+        saveFillExecution(order.orderId(), "00000000-0000-0000-0000-000000005202", "6", "55500");
+
+        Trade trade = service.capture(order.orderId());
+
+        assertEquals(new BigDecimal("55300.0000000000"), trade.averageFillPrice());
+        assertEquals(new BigDecimal("553000"), trade.grossNotional());
+    }
+
+    @Test
+    void leavesFillPriceSummaryEmptyWhenAnyFillPriceIsMissing() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000005008"),
+                OrderStatus.FILLED,
+                new BigDecimal("10")
+        );
+        orderRepository.save(order);
+        saveFillExecution(order.orderId(), "00000000-0000-0000-0000-000000005203", "4", "55000");
+        saveFillExecution(order.orderId(), "00000000-0000-0000-0000-000000005204", "6", null);
+
+        Trade trade = service.capture(order.orderId());
+
+        assertEquals(null, trade.averageFillPrice());
+        assertEquals(null, trade.grossNotional());
     }
 
     @Test
@@ -172,5 +213,20 @@ class TradeCaptureServiceTest {
                 createdAt,
                 createdAt
         );
+    }
+
+    private void saveFillExecution(
+            UUID orderId,
+            String fillExecutionId,
+            String fillQuantity,
+            String fillPrice
+    ) {
+        fillExecutionRepository.save(new OrderFillExecution(
+                UUID.fromString(fillExecutionId),
+                orderId,
+                new BigDecimal(fillQuantity),
+                fillPrice == null ? null : new BigDecimal(fillPrice),
+                Instant.parse("2026-05-20T01:00:00Z")
+        ));
     }
 }

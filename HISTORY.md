@@ -422,6 +422,33 @@ settled trade를 position ledger에 반영하고, portfolio/instrument별 현재
 
 - 실행 테스트: `./gradlew :post-trade:test`
 
+### 2026.05.22 slice
+
+execution fill event의 가격을 저장하고, post-trade trade capture 시 평균 체결가와 총 체결금액을 계산하도록 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `OrderFillExecution`에 `fillPrice` 추가
+- `OrderFillExecutionRepository.findByOrderId(orderId)` 추가
+- `InMemoryOrderFillExecutionRepository`가 order별 fill execution 조회를 지원하도록 확장
+- `OrderFillService.fill(orderId, fillExecutionId, fillQuantity, fillPrice)` 추가
+  - fill price가 있으면 양수인지 검증
+  - 기존 fill API는 유지해 가격이 아직 없는 시뮬레이션 경로도 지원
+- `Trade`에 `averageFillPrice`, `grossNotional` 추가
+- `TradeCaptureService`가 order의 fill executions를 조회해 수량 가중 평균 체결가와 총 체결금액을 계산
+- fill price 저장/조회 테스트와 trade capture 평균가 계산 테스트 추가
+
+#### 메모
+
+- average fill price는 여러 fill execution이 서로 다른 가격으로 들어왔을 때 `sum(fillQty * fillPrice) / sum(fillQty)`로 계산한다.
+- 일부 fill execution에 가격이 없거나 가격이 있는 체결 수량 합계가 order의 체결 수량과 다르면 평균가와 총 체결금액은 비워둔다.
+- 이후 cash ledger나 수수료/세금 계산은 `grossNotional`을 기준으로 확장할 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+- 실행 테스트: `./gradlew :post-trade:test`
+
 ## execution
 
 ### 2026.05.17 slice

@@ -14,6 +14,8 @@ public record Trade(
         String instrumentId,
         OrderSide side,
         BigDecimal quantity,
+        BigDecimal averageFillPrice,
+        BigDecimal grossNotional,
         TradeStatus status,
         Instant capturedAt,
         Instant settledAt,

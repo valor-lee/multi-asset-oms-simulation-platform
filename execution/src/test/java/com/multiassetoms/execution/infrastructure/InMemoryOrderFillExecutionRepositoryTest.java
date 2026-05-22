@@ -22,6 +22,7 @@ class InMemoryOrderFillExecutionRepositoryTest {
                 UUID.fromString("00000000-0000-0000-0000-000000003001"),
                 UUID.fromString("00000000-0000-0000-0000-000000001001"),
                 new BigDecimal("4"),
+                new BigDecimal("55000"),
                 Instant.parse("2026-05-20T01:00:00Z")
         );
 
@@ -30,6 +31,32 @@ class InMemoryOrderFillExecutionRepositoryTest {
         Optional<OrderFillExecution> found = repository.findByFillExecutionId(fillExecution.fillExecutionId());
         assertTrue(found.isPresent());
         assertEquals(fillExecution, found.get());
+    }
+
+    @Test
+    void findsFillExecutionsByOrderId() {
+        UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001002");
+        OrderFillExecution firstFillExecution = new OrderFillExecution(
+                UUID.fromString("00000000-0000-0000-0000-000000003002"),
+                orderId,
+                new BigDecimal("4"),
+                new BigDecimal("55000"),
+                Instant.parse("2026-05-20T01:00:00Z")
+        );
+        OrderFillExecution secondFillExecution = new OrderFillExecution(
+                UUID.fromString("00000000-0000-0000-0000-000000003003"),
+                orderId,
+                new BigDecimal("6"),
+                new BigDecimal("55500"),
+                Instant.parse("2026-05-20T01:01:00Z")
+        );
+
+        repository.save(firstFillExecution);
+        repository.save(secondFillExecution);
+
+        assertEquals(2, repository.findByOrderId(orderId).size());
+        assertTrue(repository.findByOrderId(orderId).contains(firstFillExecution));
+        assertTrue(repository.findByOrderId(orderId).contains(secondFillExecution));
     }
 
     @Test

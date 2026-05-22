@@ -193,6 +193,8 @@ class SettlementServiceTest {
                 "005930",
                 OrderSide.BUY,
                 new BigDecimal("10"),
+                new BigDecimal("55000.0000000000"),
+                new BigDecimal("550000"),
                 status,
                 capturedAt,
                 settledAt,
