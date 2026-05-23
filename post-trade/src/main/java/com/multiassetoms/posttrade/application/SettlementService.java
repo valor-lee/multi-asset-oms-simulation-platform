@@ -142,6 +142,7 @@ public class SettlementService {
                 trade.quantity(),
                 trade.averageFillPrice(),
                 trade.grossNotional(),
+                trade.feeAmount(),
                 nextStatus,
                 trade.capturedAt(),
                 settledAt,

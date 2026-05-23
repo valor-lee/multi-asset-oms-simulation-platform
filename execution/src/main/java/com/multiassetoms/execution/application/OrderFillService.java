@@ -43,7 +43,7 @@ public class OrderFillService {
      * @return 체결 수량과 상태가 갱신된 order
      */
     public Order fill(UUID orderId, BigDecimal fillQuantity) {
-        return fill(orderId, UUID.randomUUID(), fillQuantity, null);
+        return fill(orderId, UUID.randomUUID(), fillQuantity, null, null);
     }
 
     /**
@@ -61,7 +61,7 @@ public class OrderFillService {
      * @return 체결 수량과 상태가 갱신된 order
      */
     public Order fill(UUID orderId, UUID fillExecutionId, BigDecimal fillQuantity) {
-        return fill(orderId, fillExecutionId, fillQuantity, null);
+        return fill(orderId, fillExecutionId, fillQuantity, null, null);
     }
 
     /**
@@ -85,6 +85,32 @@ public class OrderFillService {
             BigDecimal fillQuantity,
             BigDecimal fillPrice
     ) {
+        return fill(orderId, fillExecutionId, fillQuantity, fillPrice, null);
+    }
+
+    /**
+     * broker/exchange 체결 이벤트를 가격과 수수료와 함께 idempotent하게 order에 반영한다.
+     * 상태별 처리:
+     * - ACKED: 첫 체결을 반영해 PARTIALLY_FILLED 또는 FILLED로 전이
+     * - PARTIALLY_FILLED: 추가 체결을 누적해 PARTIALLY_FILLED 또는 FILLED로 전이
+     * - CANCEL_REQUESTED: cancel-fill race condition을 허용해 추가 체결을 반영
+     * - 이미 처리한 fillExecutionId: 중복 이벤트로 보고 수량을 다시 누적하지 않음
+     * - 그 외 상태: 체결 반영 대상이 아니므로 예외
+     *
+     * @param orderId 체결을 반영할 order id
+     * @param fillExecutionId broker/exchange 체결 이벤트의 고유 id
+     * @param fillQuantity 이번에 추가로 체결된 수량
+     * @param fillPrice 이번 체결 가격
+     * @param feeAmount 이번 체결 수수료
+     * @return 체결 수량과 상태가 갱신된 order
+     */
+    public Order fill(
+            UUID orderId,
+            UUID fillExecutionId,
+            BigDecimal fillQuantity,
+            BigDecimal fillPrice,
+            BigDecimal feeAmount
+    ) {
         validateFillExecutionId(fillExecutionId);
         OrderFillExecution existingFillExecution =
                 fillExecutionRepository.findByFillExecutionId(fillExecutionId).orElse(null);
@@ -99,6 +125,7 @@ public class OrderFillService {
         validateFillable(order);
         validateFillQuantity(fillQuantity);
         validateFillPrice(fillPrice);
+        validateFeeAmount(feeAmount);
 
         BigDecimal newFilledQuantity = order.filledQuantity().add(fillQuantity);
         validateNotOverfilled(order, newFilledQuantity);
@@ -129,6 +156,7 @@ public class OrderFillService {
                 orderId,
                 fillQuantity,
                 fillPrice,
+                feeAmount,
                 filledAt
         ));
         return filledOrder;
@@ -167,6 +195,12 @@ public class OrderFillService {
     private void validateFillPrice(BigDecimal fillPrice) {
         if (fillPrice != null && fillPrice.compareTo(BigDecimal.ZERO) <= 0) {
             throw new OrderFillException("fillPrice must be greater than zero");
+        }
+    }
+
+    private void validateFeeAmount(BigDecimal feeAmount) {
+        if (feeAmount != null && feeAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new OrderFillException("feeAmount must be zero or greater");
         }
     }
 

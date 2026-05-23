@@ -9,6 +9,7 @@ public record OrderFillExecution(
         UUID orderId,
         BigDecimal fillQuantity,
         BigDecimal fillPrice,
+        BigDecimal feeAmount,
         Instant processedAt
 ) {
 }

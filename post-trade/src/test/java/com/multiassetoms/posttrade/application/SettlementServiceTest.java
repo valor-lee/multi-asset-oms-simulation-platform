@@ -195,6 +195,7 @@ class SettlementServiceTest {
                 new BigDecimal("10"),
                 new BigDecimal("55000.0000000000"),
                 new BigDecimal("550000"),
+                null,
                 status,
                 capturedAt,
                 settledAt,

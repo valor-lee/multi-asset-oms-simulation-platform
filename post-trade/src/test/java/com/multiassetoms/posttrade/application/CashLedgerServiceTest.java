@@ -54,6 +54,24 @@ class CashLedgerServiceTest {
     }
 
     @Test
+    void postsBuyTradeFeeAsAdditionalCashOutflow() {
+        Trade trade = createTrade(
+                UUID.fromString("00000000-0000-0000-0000-000000009108"),
+                OrderSide.BUY,
+                new BigDecimal("10"),
+                new BigDecimal("550000"),
+                new BigDecimal("100"),
+                TradeStatus.SETTLED
+        );
+        tradeRepository.save(trade);
+
+        CashLedgerEntry entry = service.post(trade.tradeId());
+
+        assertEquals(new BigDecimal("-550100"), entry.cashDelta());
+        assertEquals(new BigDecimal("-550100"), service.currentCash(trade.portfolioId()));
+    }
+
+    @Test
     void postsSellTradeAsPositiveCashDelta() {
         Trade trade = createTrade(
                 UUID.fromString("00000000-0000-0000-0000-000000009102"),
@@ -69,6 +87,24 @@ class CashLedgerServiceTest {
         assertEquals(OrderSide.SELL, entry.side());
         assertEquals(new BigDecimal("220000"), entry.cashDelta());
         assertEquals(new BigDecimal("220000"), service.currentCash(trade.portfolioId()));
+    }
+
+    @Test
+    void postsSellTradeFeeAsReducedCashInflow() {
+        Trade trade = createTrade(
+                UUID.fromString("00000000-0000-0000-0000-000000009109"),
+                OrderSide.SELL,
+                new BigDecimal("4"),
+                new BigDecimal("220000"),
+                new BigDecimal("80"),
+                TradeStatus.SETTLED
+        );
+        tradeRepository.save(trade);
+
+        CashLedgerEntry entry = service.post(trade.tradeId());
+
+        assertEquals(new BigDecimal("219920"), entry.cashDelta());
+        assertEquals(new BigDecimal("219920"), service.currentCash(trade.portfolioId()));
     }
 
     @Test
@@ -169,6 +205,17 @@ class CashLedgerServiceTest {
             BigDecimal grossNotional,
             TradeStatus status
     ) {
+        return createTrade(tradeId, side, quantity, grossNotional, null, status);
+    }
+
+    private Trade createTrade(
+            UUID tradeId,
+            OrderSide side,
+            BigDecimal quantity,
+            BigDecimal grossNotional,
+            BigDecimal feeAmount,
+            TradeStatus status
+    ) {
         Instant capturedAt = Instant.parse("2026-05-21T01:00:00Z");
         Instant settledAt = status == TradeStatus.SETTLED
                 ? Instant.parse("2026-05-22T01:00:00Z")
@@ -183,6 +230,7 @@ class CashLedgerServiceTest {
                 quantity,
                 grossNotional == null ? null : grossNotional.divide(quantity),
                 grossNotional,
+                feeAmount,
                 status,
                 capturedAt,
                 settledAt,

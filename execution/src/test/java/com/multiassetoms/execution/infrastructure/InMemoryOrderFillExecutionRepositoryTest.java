@@ -23,6 +23,7 @@ class InMemoryOrderFillExecutionRepositoryTest {
                 UUID.fromString("00000000-0000-0000-0000-000000001001"),
                 new BigDecimal("4"),
                 new BigDecimal("55000"),
+                new BigDecimal("40"),
                 Instant.parse("2026-05-20T01:00:00Z")
         );
 
@@ -41,6 +42,7 @@ class InMemoryOrderFillExecutionRepositoryTest {
                 orderId,
                 new BigDecimal("4"),
                 new BigDecimal("55000"),
+                new BigDecimal("40"),
                 Instant.parse("2026-05-20T01:00:00Z")
         );
         OrderFillExecution secondFillExecution = new OrderFillExecution(
@@ -48,6 +50,7 @@ class InMemoryOrderFillExecutionRepositoryTest {
                 orderId,
                 new BigDecimal("6"),
                 new BigDecimal("55500"),
+                new BigDecimal("60"),
                 Instant.parse("2026-05-20T01:01:00Z")
         );
 
