@@ -16,6 +16,7 @@ public record Trade(
         BigDecimal quantity,
         BigDecimal averageFillPrice,
         BigDecimal grossNotional,
+        BigDecimal feeAmount,
         TradeStatus status,
         Instant capturedAt,
         Instant settledAt,

@@ -118,6 +118,32 @@ class OrderFillServiceTest {
     }
 
     @Test
+    void storesFeeAmountWhenFeeAmountIsProvided() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001014"),
+                OrderStatus.ACKED,
+                BigDecimal.ZERO
+        );
+        UUID fillExecutionId = UUID.fromString("00000000-0000-0000-0000-000000002005");
+        orderRepository.save(order);
+
+        service.fill(
+                order.orderId(),
+                fillExecutionId,
+                new BigDecimal("4"),
+                new BigDecimal("55000"),
+                new BigDecimal("40")
+        );
+
+        assertEquals(
+                new BigDecimal("40"),
+                fillExecutionRepository.findByFillExecutionId(fillExecutionId)
+                        .orElseThrow()
+                        .feeAmount()
+        );
+    }
+
+    @Test
     void rejectsFillExecutionIdAlreadyUsedByAnotherOrder() {
         Order firstOrder = createOrder(
                 UUID.fromString("00000000-0000-0000-0000-000000001009"),
@@ -196,6 +222,29 @@ class OrderFillServiceTest {
         );
 
         assertEquals("fillPrice must be greater than zero", exception.getMessage());
+    }
+
+    @Test
+    void rejectsNegativeFeeAmount() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001015"),
+                OrderStatus.ACKED,
+                BigDecimal.ZERO
+        );
+        orderRepository.save(order);
+
+        OrderFillException exception = assertThrows(
+                OrderFillException.class,
+                () -> service.fill(
+                        order.orderId(),
+                        UUID.fromString("00000000-0000-0000-0000-000000002006"),
+                        new BigDecimal("1"),
+                        new BigDecimal("55000"),
+                        new BigDecimal("-1")
+                )
+        );
+
+        assertEquals("feeAmount must be zero or greater", exception.getMessage());
     }
 
     @Test

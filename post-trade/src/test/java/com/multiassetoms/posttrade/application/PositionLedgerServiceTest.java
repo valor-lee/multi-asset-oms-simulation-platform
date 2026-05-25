@@ -169,6 +169,7 @@ class PositionLedgerServiceTest {
                 quantity,
                 new BigDecimal("55000.0000000000"),
                 quantity.multiply(new BigDecimal("55000")),
+                null,
                 status,
                 capturedAt,
                 settledAt,

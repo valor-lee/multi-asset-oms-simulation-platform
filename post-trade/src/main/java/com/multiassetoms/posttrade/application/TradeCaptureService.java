@@ -86,7 +86,7 @@ public class TradeCaptureService {
     }
 
     private Trade toTrade(Order order, Instant capturedAt) {
-        FillPriceSummary fillPriceSummary = summarizeFillPrices(order);
+        FillSummary fillSummary = summarizeFills(order);
         return new Trade(
                 UUID.randomUUID(),
                 order.orderId(),
@@ -95,8 +95,9 @@ public class TradeCaptureService {
                 order.instrumentId(),
                 order.side(),
                 order.filledQuantity(),
-                fillPriceSummary.averageFillPrice(),
-                fillPriceSummary.grossNotional(),
+                fillSummary.averageFillPrice(),
+                fillSummary.grossNotional(),
+                fillSummary.feeAmount(),
                 TradeStatus.CAPTURED,
                 capturedAt,
                 null,
@@ -104,14 +105,16 @@ public class TradeCaptureService {
         );
     }
 
-    private FillPriceSummary summarizeFillPrices(Order order) {
+    private FillSummary summarizeFills(Order order) {
         List<OrderFillExecution> fillExecutions = fillExecutionRepository.findByOrderId(order.orderId());
         if (fillExecutions.isEmpty()) {
-            return FillPriceSummary.empty();
+            return FillSummary.empty();
         }
 
         BigDecimal pricedQuantity = BigDecimal.ZERO;
         BigDecimal grossNotional = BigDecimal.ZERO;
+        BigDecimal feeAmount = BigDecimal.ZERO;
+        boolean hasMissingFee = false;
         for (OrderFillExecution fillExecution : fillExecutions) {
             if (fillExecution.fillPrice() == null) {
                 continue;
@@ -120,25 +123,32 @@ public class TradeCaptureService {
             grossNotional = grossNotional.add(
                     fillExecution.fillQuantity().multiply(fillExecution.fillPrice())
             );
+            if (fillExecution.feeAmount() == null) {
+                hasMissingFee = true;
+                continue;
+            }
+            feeAmount = feeAmount.add(fillExecution.feeAmount());
         }
 
         if (pricedQuantity.compareTo(order.filledQuantity()) != 0) {
-            return FillPriceSummary.empty();
+            return FillSummary.empty();
         }
 
-        return new FillPriceSummary(
+        return new FillSummary(
                 grossNotional.divide(pricedQuantity, 10, RoundingMode.HALF_UP),
-                grossNotional
+                grossNotional,
+                hasMissingFee ? null : feeAmount
         );
     }
 
-    private record FillPriceSummary(
+    private record FillSummary(
             BigDecimal averageFillPrice,
-            BigDecimal grossNotional
+            BigDecimal grossNotional,
+            BigDecimal feeAmount
     ) {
 
-        private static FillPriceSummary empty() {
-            return new FillPriceSummary(null, null);
+        private static FillSummary empty() {
+            return new FillSummary(null, null, null);
         }
     }
 }
