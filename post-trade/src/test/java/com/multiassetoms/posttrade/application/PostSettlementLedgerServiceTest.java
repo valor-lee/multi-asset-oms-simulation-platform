@@ -186,6 +186,7 @@ class PostSettlementLedgerServiceTest {
                 grossNotional == null ? null : grossNotional.divide(quantity),
                 grossNotional,
                 feeAmount,
+                null,
                 status,
                 capturedAt,
                 settledAt,

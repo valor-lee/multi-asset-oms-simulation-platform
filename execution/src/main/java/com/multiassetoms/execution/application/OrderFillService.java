@@ -111,6 +111,34 @@ public class OrderFillService {
             BigDecimal fillPrice,
             BigDecimal feeAmount
     ) {
+        return fill(orderId, fillExecutionId, fillQuantity, fillPrice, feeAmount, null);
+    }
+
+    /**
+     * broker/exchange 체결 이벤트를 가격, 수수료, 세금과 함께 idempotent하게 order에 반영한다.
+     * 상태별 처리:
+     * - ACKED: 첫 체결을 반영해 PARTIALLY_FILLED 또는 FILLED로 전이
+     * - PARTIALLY_FILLED: 추가 체결을 누적해 PARTIALLY_FILLED 또는 FILLED로 전이
+     * - CANCEL_REQUESTED: cancel-fill race condition을 허용해 추가 체결을 반영
+     * - 이미 처리한 fillExecutionId: 중복 이벤트로 보고 수량을 다시 누적하지 않음
+     * - 그 외 상태: 체결 반영 대상이 아니므로 예외
+     *
+     * @param orderId 체결을 반영할 order id
+     * @param fillExecutionId broker/exchange 체결 이벤트의 고유 id
+     * @param fillQuantity 이번에 추가로 체결된 수량
+     * @param fillPrice 이번 체결 가격
+     * @param feeAmount 이번 체결 수수료
+     * @param taxAmount 이번 체결 세금
+     * @return 체결 수량과 상태가 갱신된 order
+     */
+    public Order fill(
+            UUID orderId,
+            UUID fillExecutionId,
+            BigDecimal fillQuantity,
+            BigDecimal fillPrice,
+            BigDecimal feeAmount,
+            BigDecimal taxAmount
+    ) {
         validateFillExecutionId(fillExecutionId);
         OrderFillExecution existingFillExecution =
                 fillExecutionRepository.findByFillExecutionId(fillExecutionId).orElse(null);
@@ -126,6 +154,7 @@ public class OrderFillService {
         validateFillQuantity(fillQuantity);
         validateFillPrice(fillPrice);
         validateFeeAmount(feeAmount);
+        validateTaxAmount(taxAmount);
 
         BigDecimal newFilledQuantity = order.filledQuantity().add(fillQuantity);
         validateNotOverfilled(order, newFilledQuantity);
@@ -157,6 +186,7 @@ public class OrderFillService {
                 fillQuantity,
                 fillPrice,
                 feeAmount,
+                taxAmount,
                 filledAt
         ));
         return filledOrder;
@@ -201,6 +231,12 @@ public class OrderFillService {
     private void validateFeeAmount(BigDecimal feeAmount) {
         if (feeAmount != null && feeAmount.compareTo(BigDecimal.ZERO) < 0) {
             throw new OrderFillException("feeAmount must be zero or greater");
+        }
+    }
+
+    private void validateTaxAmount(BigDecimal taxAmount) {
+        if (taxAmount != null && taxAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new OrderFillException("taxAmount must be zero or greater");
         }
     }
 

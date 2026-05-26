@@ -10,6 +10,7 @@ public record OrderFillExecution(
         BigDecimal fillQuantity,
         BigDecimal fillPrice,
         BigDecimal feeAmount,
+        BigDecimal taxAmount,
         Instant processedAt
 ) {
 }

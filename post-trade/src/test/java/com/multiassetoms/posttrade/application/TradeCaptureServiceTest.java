@@ -98,6 +98,22 @@ class TradeCaptureServiceTest {
     }
 
     @Test
+    void capturesTaxAmountWhenAllPricedFillsHaveTaxAmount() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000005010"),
+                OrderStatus.FILLED,
+                new BigDecimal("10")
+        );
+        orderRepository.save(order);
+        saveFillExecution(order.orderId(), "00000000-0000-0000-0000-000000005207", "4", "55000", "40", "12");
+        saveFillExecution(order.orderId(), "00000000-0000-0000-0000-000000005208", "6", "55500", "60", "18");
+
+        Trade trade = service.capture(order.orderId());
+
+        assertEquals(new BigDecimal("30"), trade.taxAmount());
+    }
+
+    @Test
     void leavesFillPriceSummaryEmptyWhenAnyFillPriceIsMissing() {
         Order order = createOrder(
                 UUID.fromString("00000000-0000-0000-0000-000000005008"),
@@ -247,12 +263,24 @@ class TradeCaptureServiceTest {
             String fillPrice,
             String feeAmount
     ) {
+        saveFillExecution(orderId, fillExecutionId, fillQuantity, fillPrice, feeAmount, null);
+    }
+
+    private void saveFillExecution(
+            UUID orderId,
+            String fillExecutionId,
+            String fillQuantity,
+            String fillPrice,
+            String feeAmount,
+            String taxAmount
+    ) {
         fillExecutionRepository.save(new OrderFillExecution(
                 UUID.fromString(fillExecutionId),
                 orderId,
                 new BigDecimal(fillQuantity),
                 fillPrice == null ? null : new BigDecimal(fillPrice),
                 feeAmount == null ? null : new BigDecimal(feeAmount),
+                taxAmount == null ? null : new BigDecimal(taxAmount),
                 Instant.parse("2026-05-20T01:00:00Z")
         ));
     }

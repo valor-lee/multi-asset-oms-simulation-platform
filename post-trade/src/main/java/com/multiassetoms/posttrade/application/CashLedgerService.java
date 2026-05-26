@@ -88,9 +88,10 @@ public class CashLedgerService {
 
     private BigDecimal cashDelta(Trade trade) {
         BigDecimal feeAmount = trade.feeAmount() == null ? BigDecimal.ZERO : trade.feeAmount();
+        BigDecimal taxAmount = trade.taxAmount() == null ? BigDecimal.ZERO : trade.taxAmount();
         if (trade.side() == OrderSide.BUY) {
-            return trade.grossNotional().add(feeAmount).negate();
+            return trade.grossNotional().add(feeAmount).add(taxAmount).negate();
         }
-        return trade.grossNotional().subtract(feeAmount);
+        return trade.grossNotional().subtract(feeAmount).subtract(taxAmount);
     }
 }
