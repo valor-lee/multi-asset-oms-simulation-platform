@@ -98,6 +98,7 @@ public class TradeCaptureService {
                 fillSummary.averageFillPrice(),
                 fillSummary.grossNotional(),
                 fillSummary.feeAmount(),
+                fillSummary.taxAmount(),
                 TradeStatus.CAPTURED,
                 capturedAt,
                 null,
@@ -114,7 +115,9 @@ public class TradeCaptureService {
         BigDecimal pricedQuantity = BigDecimal.ZERO;
         BigDecimal grossNotional = BigDecimal.ZERO;
         BigDecimal feeAmount = BigDecimal.ZERO;
+        BigDecimal taxAmount = BigDecimal.ZERO;
         boolean hasMissingFee = false;
+        boolean hasMissingTax = false;
         for (OrderFillExecution fillExecution : fillExecutions) {
             if (fillExecution.fillPrice() == null) {
                 continue;
@@ -128,6 +131,11 @@ public class TradeCaptureService {
                 continue;
             }
             feeAmount = feeAmount.add(fillExecution.feeAmount());
+            if (fillExecution.taxAmount() == null) {
+                hasMissingTax = true;
+                continue;
+            }
+            taxAmount = taxAmount.add(fillExecution.taxAmount());
         }
 
         if (pricedQuantity.compareTo(order.filledQuantity()) != 0) {
@@ -137,18 +145,20 @@ public class TradeCaptureService {
         return new FillSummary(
                 grossNotional.divide(pricedQuantity, 10, RoundingMode.HALF_UP),
                 grossNotional,
-                hasMissingFee ? null : feeAmount
+                hasMissingFee ? null : feeAmount,
+                hasMissingTax ? null : taxAmount
         );
     }
 
     private record FillSummary(
             BigDecimal averageFillPrice,
             BigDecimal grossNotional,
-            BigDecimal feeAmount
+            BigDecimal feeAmount,
+            BigDecimal taxAmount
     ) {
 
         private static FillSummary empty() {
-            return new FillSummary(null, null, null);
+            return new FillSummary(null, null, null, null);
         }
     }
 }

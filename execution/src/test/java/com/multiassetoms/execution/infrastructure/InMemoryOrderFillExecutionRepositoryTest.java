@@ -24,6 +24,7 @@ class InMemoryOrderFillExecutionRepositoryTest {
                 new BigDecimal("4"),
                 new BigDecimal("55000"),
                 new BigDecimal("40"),
+                new BigDecimal("10"),
                 Instant.parse("2026-05-20T01:00:00Z")
         );
 
@@ -43,6 +44,7 @@ class InMemoryOrderFillExecutionRepositoryTest {
                 new BigDecimal("4"),
                 new BigDecimal("55000"),
                 new BigDecimal("40"),
+                new BigDecimal("10"),
                 Instant.parse("2026-05-20T01:00:00Z")
         );
         OrderFillExecution secondFillExecution = new OrderFillExecution(
@@ -51,6 +53,7 @@ class InMemoryOrderFillExecutionRepositoryTest {
                 new BigDecimal("6"),
                 new BigDecimal("55500"),
                 new BigDecimal("60"),
+                new BigDecimal("15"),
                 Instant.parse("2026-05-20T01:01:00Z")
         );
 

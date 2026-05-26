@@ -529,6 +529,33 @@ settlement 완료 이후 position ledger와 cash ledger를 함께 posting하는 
 
 - 실행 테스트: `./gradlew :post-trade:test`
 
+### 2026.05.27 slice
+
+execution fill event의 세금을 trade capture와 cash ledger까지 전달하도록 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `OrderFillExecution`에 `taxAmount` 추가
+- `OrderFillService.fill(orderId, fillExecutionId, fillQuantity, fillPrice, feeAmount, taxAmount)` 추가
+  - 세금이 있으면 0 이상인지 검증
+  - 기존 fill API는 유지해 세금이 없는 체결 경로도 지원
+- `Trade`에 `taxAmount` 추가
+- `TradeCaptureService`가 가격이 있는 fill executions의 세금을 합산해 trade에 저장
+- `CashLedgerService`가 세금이 있는 trade를 현금 변화에 반영
+  - BUY는 `grossNotional + feeAmount + taxAmount`만큼 현금 유출
+  - SELL은 `grossNotional - feeAmount - taxAmount`만큼 현금 유입
+- fill 세금 저장/검증, trade capture 세금 합산, cash ledger 세금 반영 테스트 추가
+
+#### 메모
+
+- 세금이 없는 기존 체결 경로는 `taxAmount = null`로 유지한다.
+- cash ledger는 수수료/세금이 없으면 기존처럼 순수 거래대금만 반영하고, 값이 있으면 실제 현금 유출입에 포함한다.
+- 이후 국가/상품별 세금 정책을 별도 calculator로 분리할 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test :post-trade:test`
+
 ## execution
 
 ### 2026.05.17 slice

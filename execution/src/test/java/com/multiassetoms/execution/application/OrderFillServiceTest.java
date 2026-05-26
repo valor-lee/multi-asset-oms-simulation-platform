@@ -144,6 +144,33 @@ class OrderFillServiceTest {
     }
 
     @Test
+    void storesTaxAmountWhenTaxAmountIsProvided() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001016"),
+                OrderStatus.ACKED,
+                BigDecimal.ZERO
+        );
+        UUID fillExecutionId = UUID.fromString("00000000-0000-0000-0000-000000002007");
+        orderRepository.save(order);
+
+        service.fill(
+                order.orderId(),
+                fillExecutionId,
+                new BigDecimal("4"),
+                new BigDecimal("55000"),
+                new BigDecimal("40"),
+                new BigDecimal("12")
+        );
+
+        assertEquals(
+                new BigDecimal("12"),
+                fillExecutionRepository.findByFillExecutionId(fillExecutionId)
+                        .orElseThrow()
+                        .taxAmount()
+        );
+    }
+
+    @Test
     void rejectsFillExecutionIdAlreadyUsedByAnotherOrder() {
         Order firstOrder = createOrder(
                 UUID.fromString("00000000-0000-0000-0000-000000001009"),
@@ -245,6 +272,30 @@ class OrderFillServiceTest {
         );
 
         assertEquals("feeAmount must be zero or greater", exception.getMessage());
+    }
+
+    @Test
+    void rejectsNegativeTaxAmount() {
+        Order order = createOrder(
+                UUID.fromString("00000000-0000-0000-0000-000000001017"),
+                OrderStatus.ACKED,
+                BigDecimal.ZERO
+        );
+        orderRepository.save(order);
+
+        OrderFillException exception = assertThrows(
+                OrderFillException.class,
+                () -> service.fill(
+                        order.orderId(),
+                        UUID.fromString("00000000-0000-0000-0000-000000002008"),
+                        new BigDecimal("1"),
+                        new BigDecimal("55000"),
+                        BigDecimal.ZERO,
+                        new BigDecimal("-1")
+                )
+        );
+
+        assertEquals("taxAmount must be zero or greater", exception.getMessage());
     }
 
     @Test
