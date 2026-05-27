@@ -584,6 +584,31 @@ settled SELL trade의 realized PnL을 기록하고 portfolio별 누적 realized 
 
 - 실행 테스트: `./gradlew :post-trade:test`
 
+### 2026.05.27 slice
+
+현재 position, 평균 원가, 현재가를 기준으로 unrealized PnL snapshot을 계산하는 기본 흐름을 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `UnrealizedPnlSnapshot`, `UnrealizedPnlException` 추가
+- `UnrealizedPnlService` 추가
+  - `PositionLedgerService.currentPosition(portfolioId, instrumentId)`로 현재 position 조회
+  - 평균 원가와 현재가를 입력받아 cost basis, market value, unrealized PnL 계산
+  - 보유 수량이 없으면 0 quantity / 0 PnL snapshot 반환
+  - short position은 아직 지원하지 않으므로 거절
+  - portfolio/instrument/가격 입력 검증
+- unrealized PnL 계산/검증 테스트 추가
+
+#### 메모
+
+- 평가손익은 시장 가격이 바뀔 때마다 달라지는 값이므로 ledger posting이 아니라 snapshot 계산으로 분리했다.
+- 현재는 평균 원가와 현재가를 외부 입력으로 받는다.
+- 이후 market data 조회와 position cost basis 조회가 생기면 service 내부 입력원을 연결할 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+
 ## execution
 
 ### 2026.05.17 slice
