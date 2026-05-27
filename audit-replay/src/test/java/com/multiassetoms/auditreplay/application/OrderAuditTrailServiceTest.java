@@ -1,6 +1,6 @@
 package com.multiassetoms.auditreplay.application;
 
-import com.multiassetoms.auditreplay.model.OrderAuditEventType;
+import com.multiassetoms.auditreplay.model.OrderAuditEventSource;
 import com.multiassetoms.auditreplay.model.OrderAuditTrail;
 import com.multiassetoms.execution.infrastructure.InMemoryOrderExecutionEventRepository;
 import com.multiassetoms.execution.infrastructure.InMemoryOrderFillExecutionRepository;
@@ -57,9 +57,12 @@ class OrderAuditTrailServiceTest {
 
         assertEquals(orderId, auditTrail.orderId());
         assertEquals(3, auditTrail.events().size());
-        assertEquals(OrderAuditEventType.ACKNOWLEDGED, auditTrail.events().get(0).eventType());
-        assertEquals(OrderAuditEventType.FILL, auditTrail.events().get(1).eventType());
-        assertEquals(OrderAuditEventType.CANCEL_CONFIRMED, auditTrail.events().get(2).eventType());
+        assertEquals(OrderAuditEventSource.ORDER_EXECUTION, auditTrail.events().get(0).source());
+        assertEquals("ACKNOWLEDGED", auditTrail.events().get(0).eventType());
+        assertEquals(OrderAuditEventSource.FILL_EXECUTION, auditTrail.events().get(1).source());
+        assertEquals("FILL", auditTrail.events().get(1).eventType());
+        assertEquals(OrderAuditEventSource.ORDER_EXECUTION, auditTrail.events().get(2).source());
+        assertEquals("CANCEL_CONFIRMED", auditTrail.events().get(2).eventType());
     }
 
     @Test
@@ -80,7 +83,8 @@ class OrderAuditTrailServiceTest {
 
         assertEquals(1, auditTrail.events().size());
         assertEquals(fillExecutionId, auditTrail.events().get(0).eventId());
-        assertEquals(OrderAuditEventType.FILL, auditTrail.events().get(0).eventType());
+        assertEquals(OrderAuditEventSource.FILL_EXECUTION, auditTrail.events().get(0).source());
+        assertEquals("FILL", auditTrail.events().get(0).eventType());
         assertEquals(new BigDecimal("6"), auditTrail.events().get(0).fillQuantity());
         assertEquals(new BigDecimal("55500"), auditTrail.events().get(0).fillPrice());
         assertEquals(new BigDecimal("60"), auditTrail.events().get(0).feeAmount());
