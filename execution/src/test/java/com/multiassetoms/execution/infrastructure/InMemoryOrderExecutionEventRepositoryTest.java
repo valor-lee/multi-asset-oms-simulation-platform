@@ -5,6 +5,7 @@ import com.multiassetoms.execution.model.OrderExecutionEventType;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,5 +40,31 @@ class InMemoryOrderExecutionEventRepositoryTest {
         );
 
         assertTrue(found.isEmpty());
+    }
+
+    @Test
+    void findsExecutionEventsByOrderId() {
+        UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000001002");
+        OrderExecutionEvent ackEvent = new OrderExecutionEvent(
+                UUID.fromString("00000000-0000-0000-0000-000000004002"),
+                orderId,
+                OrderExecutionEventType.ACKNOWLEDGED,
+                Instant.parse("2026-05-21T01:00:00Z")
+        );
+        OrderExecutionEvent cancelEvent = new OrderExecutionEvent(
+                UUID.fromString("00000000-0000-0000-0000-000000004003"),
+                orderId,
+                OrderExecutionEventType.CANCEL_CONFIRMED,
+                Instant.parse("2026-05-21T01:03:00Z")
+        );
+
+        repository.save(ackEvent);
+        repository.save(cancelEvent);
+
+        List<OrderExecutionEvent> events = repository.findByOrderId(orderId);
+
+        assertEquals(2, events.size());
+        assertTrue(events.contains(ackEvent));
+        assertTrue(events.contains(cancelEvent));
     }
 }

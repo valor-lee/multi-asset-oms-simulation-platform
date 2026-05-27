@@ -609,6 +609,34 @@ settled SELL trade의 realized PnL을 기록하고 portfolio별 누적 realized 
 
 - 실행 테스트: `./gradlew :post-trade:test`
 
+### 2026.05.27 slice
+
+order별 execution/fill 이벤트를 시간순 audit trail로 조회하는 기본 흐름을 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `OrderExecutionEventRepository.findByOrderId(orderId)` 추가
+- `InMemoryOrderExecutionEventRepository`가 order별 execution event 조회를 지원하도록 확장
+- `audit-replay` 모듈이 `execution` 모듈 이벤트 모델을 조회할 수 있도록 의존성 추가
+- `OrderAuditEventType`, `OrderAuditEvent`, `OrderAuditTrail` 추가
+- `OrderAuditTrailService` 추가
+  - ACK/REJECT/CANCEL confirmation 이벤트와 fill execution 이벤트를 order 기준으로 모음
+  - 이벤트 발생 시각 기준으로 정렬해 하나의 timeline으로 반환
+  - fill 이벤트의 수량, 가격, 수수료, 세금 정보를 audit trail에 포함
+- order별 execution event 조회 테스트와 audit trail 서비스 테스트 추가
+
+#### 메모
+
+- 감사 로그는 "현재 order 상태가 왜 이렇게 되었는가"를 설명하기 위한 근거 데이터다.
+- 주문은 ACK, 부분체결, 취소 요청, 취소 확인, 추가 체결처럼 여러 이벤트를 거쳐 최종 상태가 정해진다.
+- 장애나 상태 불일치가 발생했을 때 최종 order row만 보면 원인을 알기 어렵고, 시간순 이벤트 trail이 있어야 어떤 broker/exchange 응답과 fill이 상태를 만들었는지 추적할 수 있다.
+- 이번 slice는 아직 상태를 다시 계산하는 replay engine은 아니고, replay의 입력이 될 order event timeline을 안정적으로 조회하는 첫 단계다.
+- fill 이벤트에는 수량/가격/수수료/세금이 들어가므로 이후 post-trade 결과와 주문 체결 이력을 대조하는 데에도 사용할 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test :audit-replay:test`
+
 ## execution
 
 ### 2026.05.17 slice
