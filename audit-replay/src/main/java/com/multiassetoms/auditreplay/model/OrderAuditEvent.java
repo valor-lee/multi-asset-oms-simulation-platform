@@ -7,7 +7,8 @@ import java.util.UUID;
 public record OrderAuditEvent(
         UUID eventId,
         UUID orderId,
-        OrderAuditEventType eventType,
+        OrderAuditEventSource source,
+        String eventType,
         BigDecimal fillQuantity,
         BigDecimal fillPrice,
         BigDecimal feeAmount,

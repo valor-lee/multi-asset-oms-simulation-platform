@@ -1,7 +1,7 @@
 package com.multiassetoms.auditreplay.application;
 
 import com.multiassetoms.auditreplay.model.OrderAuditEvent;
-import com.multiassetoms.auditreplay.model.OrderAuditEventType;
+import com.multiassetoms.auditreplay.model.OrderAuditEventSource;
 import com.multiassetoms.auditreplay.model.OrderAuditTrail;
 import com.multiassetoms.execution.application.port.OrderExecutionEventRepository;
 import com.multiassetoms.execution.application.port.OrderFillExecutionRepository;
@@ -57,7 +57,8 @@ public class OrderAuditTrailService {
         return new OrderAuditEvent(
                 event.eventId(),
                 event.orderId(),
-                OrderAuditEventType.valueOf(event.eventType().name()),
+                OrderAuditEventSource.ORDER_EXECUTION,
+                event.eventType().name(),
                 null,
                 null,
                 null,
@@ -70,7 +71,8 @@ public class OrderAuditTrailService {
         return new OrderAuditEvent(
                 fillExecution.fillExecutionId(),
                 fillExecution.orderId(),
-                OrderAuditEventType.FILL,
+                OrderAuditEventSource.FILL_EXECUTION,
+                "FILL",
                 fillExecution.fillQuantity(),
                 fillExecution.fillPrice(),
                 fillExecution.feeAmount(),
