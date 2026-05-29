@@ -666,6 +666,35 @@ audit trail 이벤트 타입 표현을 `source + eventType` 구조로 바꿔 원
 
 - 실행 테스트: `./gradlew :audit-replay:test`
 
+### 2026.05.29 slice
+
+order audit trail을 순서대로 적용해 SENT 이후 실행 결과를 재현하는 기본 replay 흐름을 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `OrderReplayResult`, `OrderReplayException` 추가
+- `OrderExecutionReplayService` 추가
+  - order audit trail을 조회해 발생 시각 순서대로 이벤트 적용
+  - replay 시작 상태는 `SENT`로 고정
+  - `ACKNOWLEDGED` 이벤트는 `ACKED` 상태로 재현
+  - `REJECTED` 이벤트는 `REJECTED` 상태로 재현
+  - `CANCEL_CONFIRMED` 이벤트는 `CANCELED` 상태로 재현
+  - `FILL` 이벤트는 체결 수량을 누적해 `PARTIALLY_FILLED` 또는 `FILLED` 상태로 재현
+  - 누적 체결 수량이 원 주문 수량을 초과하면 오류로 방어
+- ACK, partial fill, full fill, reject, partial fill 후 cancel confirmation replay 테스트 추가
+
+#### 메모
+
+- replay는 저장된 이벤트만으로 "이 주문이 어떤 상태가 되었어야 하는가"를 다시 계산하는 기능이다.
+- 운영 중 장애나 데이터 불일치가 발생했을 때 현재 order row와 이벤트 기반 재현 결과를 비교하면, 상태 전이 누락이나 중복 처리 여부를 추적할 수 있다.
+- 이번 slice는 전체 주문 lifecycle replay가 아니라 `SENT` 이후 broker/exchange 응답과 fill 이벤트만 재현한다.
+- 아직 `CREATED -> SENT`, `CANCEL_REQUESTED` 같은 내부 요청 이벤트는 audit trail에 저장하지 않으므로 replay 결과도 해당 구간은 재현하지 않는다.
+- 이후 fromStatus/toStatus와 payload를 포함한 공통 order lifecycle event log가 생기면 replay를 더 엄밀한 상태 머신 검증으로 확장할 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :audit-replay:test`
+
 ## execution
 
 ### 2026.05.17 slice
