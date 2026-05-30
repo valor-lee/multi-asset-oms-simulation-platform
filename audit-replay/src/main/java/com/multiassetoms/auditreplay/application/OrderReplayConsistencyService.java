@@ -2,6 +2,7 @@ package com.multiassetoms.auditreplay.application;
 
 import com.multiassetoms.auditreplay.model.OrderReplayConsistencyResult;
 import com.multiassetoms.auditreplay.model.OrderReplayException;
+import com.multiassetoms.auditreplay.model.OrderReplayMismatchReason;
 import com.multiassetoms.auditreplay.model.OrderReplayResult;
 import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -43,13 +46,12 @@ public class OrderReplayConsistencyService {
                 .orElseThrow(() -> new OrderReplayException("order not found"));
         OrderReplayResult replayResult = replayService.replay(order.orderId(), order.quantity());
 
-        boolean consistent =
-                    order.status() == replayResult.replayedStatus() &&
-                    order.filledQuantity().compareTo(replayResult.replayedFilledQuantity()) == 0;
+        List<OrderReplayMismatchReason> mismatchReasons = mismatchReasons(order, replayResult);
 
         return new OrderReplayConsistencyResult(
                 order.orderId(),
-                consistent,
+                mismatchReasons.isEmpty(),
+                mismatchReasons,
                 order.status(),
                 replayResult.replayedStatus(),
                 order.filledQuantity(),
@@ -57,5 +59,18 @@ public class OrderReplayConsistencyService {
                 replayResult.appliedEventCount(),
                 Instant.now(clock)
         );
+    }
+
+    private List<OrderReplayMismatchReason> mismatchReasons(Order order, OrderReplayResult replayResult) {
+        List<OrderReplayMismatchReason> reasons = new ArrayList<>();
+
+        if (order.status() != replayResult.replayedStatus()) {
+            reasons.add(OrderReplayMismatchReason.STATUS_MISMATCH);
+        }
+        if (order.filledQuantity().compareTo(replayResult.replayedFilledQuantity()) != 0) {
+            reasons.add(OrderReplayMismatchReason.FILLED_QUANTITY_MISMATCH);
+        }
+
+        return List.copyOf(reasons);
     }
 }

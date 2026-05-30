@@ -2,6 +2,7 @@ package com.multiassetoms.auditreplay.application;
 
 import com.multiassetoms.auditreplay.model.OrderReplayConsistencyResult;
 import com.multiassetoms.auditreplay.model.OrderReplayException;
+import com.multiassetoms.auditreplay.model.OrderReplayMismatchReason;
 import com.multiassetoms.execution.infrastructure.InMemoryOrderExecutionEventRepository;
 import com.multiassetoms.execution.infrastructure.InMemoryOrderFillExecutionRepository;
 import com.multiassetoms.execution.infrastructure.InMemoryOrderRepository;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -67,6 +69,7 @@ class OrderReplayConsistencyServiceTest {
         OrderReplayConsistencyResult result = service.check(orderId);
 
         assertTrue(result.consistent());
+        assertTrue(result.mismatchReasons().isEmpty());
         assertEquals(OrderStatus.FILLED, result.actualStatus());
         assertEquals(OrderStatus.FILLED, result.replayedStatus());
         assertEquals(new BigDecimal("10"), result.actualFilledQuantity());
@@ -91,6 +94,10 @@ class OrderReplayConsistencyServiceTest {
         OrderReplayConsistencyResult result = service.check(orderId);
 
         assertFalse(result.consistent());
+        assertEquals(
+                List.of(OrderReplayMismatchReason.STATUS_MISMATCH),
+                result.mismatchReasons()
+        );
         assertEquals(OrderStatus.PARTIALLY_FILLED, result.actualStatus());
         assertEquals(OrderStatus.FILLED, result.replayedStatus());
         assertEquals(new BigDecimal("10"), result.actualFilledQuantity());
@@ -112,9 +119,41 @@ class OrderReplayConsistencyServiceTest {
         OrderReplayConsistencyResult result = service.check(orderId);
 
         assertFalse(result.consistent());
+        assertEquals(
+                List.of(OrderReplayMismatchReason.FILLED_QUANTITY_MISMATCH),
+                result.mismatchReasons()
+        );
         assertEquals(OrderStatus.PARTIALLY_FILLED, result.actualStatus());
         assertEquals(OrderStatus.PARTIALLY_FILLED, result.replayedStatus());
         assertEquals(new BigDecimal("3"), result.actualFilledQuantity());
+        assertEquals(new BigDecimal("4"), result.replayedFilledQuantity());
+    }
+
+    @Test
+    void returnsAllMismatchReasonsWhenStatusAndFilledQuantityDifferFromReplayResult() {
+        UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000016004");
+        orderRepository.save(createOrder(orderId, OrderStatus.ACKED, new BigDecimal("1")));
+        saveExecutionEvent(
+                orderId,
+                "00000000-0000-0000-0000-000000016104",
+                OrderExecutionEventType.ACKNOWLEDGED,
+                "2026-05-30T00:00:00Z"
+        );
+        saveFillExecution(orderId, "00000000-0000-0000-0000-000000016206", "4", "2026-05-30T00:01:00Z");
+
+        OrderReplayConsistencyResult result = service.check(orderId);
+
+        assertFalse(result.consistent());
+        assertEquals(
+                List.of(
+                        OrderReplayMismatchReason.STATUS_MISMATCH,
+                        OrderReplayMismatchReason.FILLED_QUANTITY_MISMATCH
+                ),
+                result.mismatchReasons()
+        );
+        assertEquals(OrderStatus.ACKED, result.actualStatus());
+        assertEquals(OrderStatus.PARTIALLY_FILLED, result.replayedStatus());
+        assertEquals(new BigDecimal("1"), result.actualFilledQuantity());
         assertEquals(new BigDecimal("4"), result.replayedFilledQuantity());
     }
 
