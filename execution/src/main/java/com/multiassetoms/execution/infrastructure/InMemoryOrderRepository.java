@@ -4,6 +4,8 @@ import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
 import org.springframework.stereotype.Repository;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,5 +36,14 @@ public class InMemoryOrderRepository implements OrderRepository {
             return Optional.empty();
         }
         return findByOrderId(orderId);
+    }
+
+    @Override
+    public List<Order> findAll() {
+        return ordersById.values().stream()
+                .sorted(Comparator
+                        .comparing(Order::createdAt)
+                        .thenComparing(Order::orderId))
+                .toList();
     }
 }

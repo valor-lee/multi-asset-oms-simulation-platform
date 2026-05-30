@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,7 +48,39 @@ class InMemoryOrderRepositoryTest {
         assertTrue(repository.findByIntentId(UUID.fromString("00000000-0000-0000-0000-000000000499")).isEmpty());
     }
 
+    @Test
+    void returnsAllOrdersSortedByCreatedAtAndOrderId() {
+        Order later = order(
+                UUID.fromString("00000000-0000-0000-0000-000000000303"),
+                UUID.fromString("00000000-0000-0000-0000-000000000403"),
+                Instant.parse("2026-05-17T00:01:00Z")
+        );
+        Order earlierSecond = order(
+                UUID.fromString("00000000-0000-0000-0000-000000000305"),
+                UUID.fromString("00000000-0000-0000-0000-000000000405"),
+                Instant.parse("2026-05-17T00:00:00Z")
+        );
+        Order earlierFirst = order(
+                UUID.fromString("00000000-0000-0000-0000-000000000304"),
+                UUID.fromString("00000000-0000-0000-0000-000000000404"),
+                Instant.parse("2026-05-17T00:00:00Z")
+        );
+
+        repository.save(later);
+        repository.save(earlierSecond);
+        repository.save(earlierFirst);
+
+        assertEquals(
+                List.of(earlierFirst, earlierSecond, later),
+                repository.findAll()
+        );
+    }
+
     private Order order(UUID orderId, UUID intentId) {
+        return order(orderId, intentId, Instant.parse("2026-05-17T00:00:00Z"));
+    }
+
+    private Order order(UUID orderId, UUID intentId, Instant createdAt) {
         Instant now = Instant.parse("2026-05-17T00:00:00Z");
         return new Order(
                 orderId,
@@ -61,7 +94,7 @@ class InMemoryOrderRepositoryTest {
                 new BigDecimal("55000"),
                 TimeInForce.DAY,
                 OrderStatus.CREATED,
-                now,
+                createdAt,
                 now
         );
     }
