@@ -22,7 +22,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(OrderExecutionReplayController.class)
 @ContextConfiguration(classes = {
         OrderExecutionReplayControllerTest.TestApplication.class,
-        OrderExecutionReplayController.class
+        OrderExecutionReplayController.class,
+        AuditReplayExceptionHandler.class
 })
 class OrderExecutionReplayControllerTest {
 
@@ -59,5 +60,14 @@ class OrderExecutionReplayControllerTest {
                 .andExpect(jsonPath("$.replayedFilledQuantity").value(10))
                 .andExpect(jsonPath("$.appliedEventCount").value(3))
                 .andExpect(jsonPath("$.replayedAt").value("2026-05-31T03:00:00Z"));
+    }
+
+    @Test
+    void returnsBadRequestWhenOrderQuantityIsMissing() throws Exception {
+        UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000019002");
+
+        mockMvc.perform(get("/api/audit-replay/order-replay/{orderId}", orderId))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("orderQuantity is required"));
     }
 }
