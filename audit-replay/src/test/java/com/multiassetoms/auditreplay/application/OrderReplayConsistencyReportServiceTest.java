@@ -114,6 +114,88 @@ class OrderReplayConsistencyReportServiceTest {
     }
 
     @Test
+    void returnsReportWithOnlyInconsistentResults() {
+        UUID consistentOrderId = UUID.fromString("00000000-0000-0000-0000-000000017003");
+        UUID quantityMismatchOrderId = UUID.fromString("00000000-0000-0000-0000-000000017004");
+        UUID statusMismatchOrderId = UUID.fromString("00000000-0000-0000-0000-000000017005");
+        orderRepository.save(createOrder(
+                consistentOrderId,
+                "00000000-0000-0000-0000-000000017103",
+                OrderStatus.FILLED,
+                new BigDecimal("10"),
+                "2026-05-31T00:00:00Z"
+        ));
+        orderRepository.save(createOrder(
+                quantityMismatchOrderId,
+                "00000000-0000-0000-0000-000000017104",
+                OrderStatus.PARTIALLY_FILLED,
+                new BigDecimal("3"),
+                "2026-05-31T00:01:00Z"
+        ));
+        orderRepository.save(createOrder(
+                statusMismatchOrderId,
+                "00000000-0000-0000-0000-000000017105",
+                OrderStatus.PARTIALLY_FILLED,
+                new BigDecimal("10"),
+                "2026-05-31T00:02:00Z"
+        ));
+        saveExecutionEvent(
+                consistentOrderId,
+                "00000000-0000-0000-0000-000000017203",
+                OrderExecutionEventType.ACKNOWLEDGED,
+                "2026-05-31T00:00:10Z"
+        );
+        saveFillExecution(
+                consistentOrderId,
+                "00000000-0000-0000-0000-000000017303",
+                "10",
+                "2026-05-31T00:00:20Z"
+        );
+        saveExecutionEvent(
+                quantityMismatchOrderId,
+                "00000000-0000-0000-0000-000000017204",
+                OrderExecutionEventType.ACKNOWLEDGED,
+                "2026-05-31T00:01:10Z"
+        );
+        saveFillExecution(
+                quantityMismatchOrderId,
+                "00000000-0000-0000-0000-000000017304",
+                "4",
+                "2026-05-31T00:01:20Z"
+        );
+        saveExecutionEvent(
+                statusMismatchOrderId,
+                "00000000-0000-0000-0000-000000017205",
+                OrderExecutionEventType.ACKNOWLEDGED,
+                "2026-05-31T00:02:10Z"
+        );
+        saveFillExecution(
+                statusMismatchOrderId,
+                "00000000-0000-0000-0000-000000017305",
+                "10",
+                "2026-05-31T00:02:20Z"
+        );
+
+        OrderReplayConsistencyReport report = reportService.checkInconsistentOnly();
+
+        assertEquals(3, report.totalCount());
+        assertEquals(1, report.consistentCount());
+        assertEquals(2, report.inconsistentCount());
+        assertEquals(2, report.results().size());
+        assertEquals(quantityMismatchOrderId, report.results().get(0).orderId());
+        assertEquals(
+                List.of(OrderReplayMismatchReason.FILLED_QUANTITY_MISMATCH),
+                report.results().get(0).mismatchReasons()
+        );
+        assertEquals(statusMismatchOrderId, report.results().get(1).orderId());
+        assertEquals(
+                List.of(OrderReplayMismatchReason.STATUS_MISMATCH),
+                report.results().get(1).mismatchReasons()
+        );
+        assertEquals(Instant.parse("2026-05-31T01:00:00Z"), report.checkedAt());
+    }
+
+    @Test
     void returnsEmptyReportWhenThereAreNoOrders() {
         OrderReplayConsistencyReport report = reportService.checkAll();
 
