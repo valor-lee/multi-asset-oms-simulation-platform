@@ -875,6 +875,7 @@ audit-replay 진단 API를 확장해 특정 주문의 audit trail과 consistency
   - `OrderReplayException`, `IllegalArgumentException`을 `400 Bad Request` JSON 응답으로 변환
   - 누락된 query parameter를 `{ "message": "<parameter> is required" }` 형태로 반환
   - UUID/path/query parameter 변환 실패를 `invalid request argument` 메시지로 반환
+  - 다른 모듈의 controller 예외 처리와 충돌하지 않도록 `com.multiassetoms.auditreplay` 패키지로 적용 범위 제한
 - `audit-replay` 모듈에 servlet API compile-only 의존성 추가
   - servlet 기반 MVC 예외 타입을 API 계층에서 컴파일할 수 있도록 보강
 - `OrderAuditTrailController` 추가
