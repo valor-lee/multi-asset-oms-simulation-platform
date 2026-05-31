@@ -6,6 +6,7 @@ dependencies {
     api(project(":execution"))
     api("org.springframework:spring-context")
     implementation("org.springframework:spring-web")
+    compileOnly("jakarta.servlet:jakarta.servlet-api") // MVC exception handler uses servlet-based request exceptions
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-web")
 }
