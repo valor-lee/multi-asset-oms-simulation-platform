@@ -38,12 +38,12 @@ class OrderReplayConsistencyControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private OrderReplayConsistencyService consistencyService;
+    private OrderReplayConsistencyQueryService consistencyQueryService;
 
     @Test
     void returnsOrderReplayConsistencyResult() throws Exception {
         UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000021001");
-        when(consistencyService.check(orderId)).thenReturn(new OrderReplayConsistencyResult(
+        when(consistencyQueryService.checkStoredOrder(orderId)).thenReturn(new OrderReplayConsistencyResult(
                 orderId,
                 false,
                 List.of(OrderReplayMismatchReason.STATUS_MISMATCH),
@@ -71,7 +71,7 @@ class OrderReplayConsistencyControllerTest {
     @Test
     void returnsBadRequestWhenConsistencyCheckFails() throws Exception {
         UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000021099");
-        when(consistencyService.check(orderId)).thenThrow(new OrderReplayException("order not found"));
+        when(consistencyQueryService.checkStoredOrder(orderId)).thenThrow(new OrderReplayException("order not found"));
 
         mockMvc.perform(get("/api/audit-replay/order-replay/consistency/{orderId}", orderId))
                 .andExpect(status().isBadRequest())

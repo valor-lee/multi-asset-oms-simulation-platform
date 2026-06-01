@@ -44,14 +44,15 @@ class OrderReplayConsistencyReportServiceTest {
             auditTrailService,
             fixedClock
     );
-    private final OrderReplayConsistencyService consistencyService = new OrderReplayConsistencyService(
+    private final OrderReplayConsistencyService consistencyService = new OrderReplayConsistencyService(fixedClock);
+    private final OrderReplayConsistencyQueryService consistencyQueryService = new OrderReplayConsistencyQueryService(
             orderRepository,
             replayService,
-            fixedClock
+            consistencyService
     );
     private final OrderReplayConsistencyReportService reportService = new OrderReplayConsistencyReportService(
             orderRepository,
-            consistencyService,
+            consistencyQueryService,
             fixedClock
     );
 

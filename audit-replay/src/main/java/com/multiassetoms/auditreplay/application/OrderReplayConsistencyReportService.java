@@ -15,16 +15,16 @@ import java.util.List;
 public class OrderReplayConsistencyReportService {
 
     private final OrderRepository orderRepository;
-    private final OrderReplayConsistencyService consistencyService;
+    private final OrderReplayConsistencyQueryService consistencyQueryService;
     private final Clock clock;
 
     public OrderReplayConsistencyReportService(
             OrderRepository orderRepository,
-            OrderReplayConsistencyService consistencyService,
+            OrderReplayConsistencyQueryService consistencyQueryService,
             Clock clock
     ) {
         this.orderRepository = orderRepository;
-        this.consistencyService = consistencyService;
+        this.consistencyQueryService = consistencyQueryService;
         this.clock = clock;
     }
 
@@ -57,7 +57,7 @@ public class OrderReplayConsistencyReportService {
                 .sorted(Comparator
                         .comparing(Order::createdAt)
                         .thenComparing(Order::orderId))
-                .map(order -> consistencyService.check(order.orderId()))
+                .map(order -> consistencyQueryService.checkStoredOrder(order.orderId()))
                 .toList();
     }
 

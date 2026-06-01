@@ -12,14 +12,14 @@ import java.util.UUID;
 @RequestMapping("/api/audit-replay/order-replay/consistency")
 public class OrderReplayConsistencyController {
 
-    private final OrderReplayConsistencyService consistencyService;
+    private final OrderReplayConsistencyQueryService consistencyQueryService;
 
-    public OrderReplayConsistencyController(OrderReplayConsistencyService consistencyService) {
-        this.consistencyService = consistencyService;
+    public OrderReplayConsistencyController(OrderReplayConsistencyQueryService consistencyQueryService) {
+        this.consistencyQueryService = consistencyQueryService;
     }
 
     @GetMapping("/{orderId}")
     public OrderReplayConsistencyResult check(@PathVariable("orderId") UUID orderId) {
-        return consistencyService.check(orderId);
+        return consistencyQueryService.checkStoredOrder(orderId);
     }
 }
