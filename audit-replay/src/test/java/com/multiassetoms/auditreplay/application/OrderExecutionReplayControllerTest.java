@@ -37,6 +37,9 @@ class OrderExecutionReplayControllerTest {
     @MockBean
     private OrderExecutionReplayService replayService;
 
+    @MockBean
+    private OrderExecutionReplayQueryService replayQueryService;
+
     @Test
     void returnsReplayResultForOrder() throws Exception {
         UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000019001");
@@ -60,6 +63,30 @@ class OrderExecutionReplayControllerTest {
                 .andExpect(jsonPath("$.replayedFilledQuantity").value(10))
                 .andExpect(jsonPath("$.appliedEventCount").value(3))
                 .andExpect(jsonPath("$.replayedAt").value("2026-05-31T03:00:00Z"));
+    }
+
+    @Test
+    void returnsReplayResultUsingStoredOrderQuantity() throws Exception {
+        UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000019003");
+        when(replayQueryService.replayStoredOrder(orderId)).thenReturn(new OrderReplayResult(
+                orderId,
+                OrderStatus.SENT,
+                OrderStatus.PARTIALLY_FILLED,
+                new BigDecimal("12"),
+                new BigDecimal("5"),
+                2,
+                Instant.parse("2026-06-01T00:10:00Z")
+        ));
+
+        mockMvc.perform(get("/api/audit-replay/order-replay/stored-orders/{orderId}", orderId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId").value("00000000-0000-0000-0000-000000019003"))
+                .andExpect(jsonPath("$.initialStatus").value("SENT"))
+                .andExpect(jsonPath("$.replayedStatus").value("PARTIALLY_FILLED"))
+                .andExpect(jsonPath("$.orderQuantity").value(12))
+                .andExpect(jsonPath("$.replayedFilledQuantity").value(5))
+                .andExpect(jsonPath("$.appliedEventCount").value(2))
+                .andExpect(jsonPath("$.replayedAt").value("2026-06-01T00:10:00Z"));
     }
 
     @Test

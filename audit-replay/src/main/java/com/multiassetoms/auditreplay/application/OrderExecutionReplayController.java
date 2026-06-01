@@ -15,9 +15,14 @@ import java.util.UUID;
 public class OrderExecutionReplayController {
 
     private final OrderExecutionReplayService replayService;
+    private final OrderExecutionReplayQueryService replayQueryService;
 
-    public OrderExecutionReplayController(OrderExecutionReplayService replayService) {
+    public OrderExecutionReplayController(
+            OrderExecutionReplayService replayService,
+            OrderExecutionReplayQueryService replayQueryService
+    ) {
         this.replayService = replayService;
+        this.replayQueryService = replayQueryService;
     }
 
     @GetMapping("/{orderId}")
@@ -26,5 +31,10 @@ public class OrderExecutionReplayController {
             @RequestParam(name = "orderQuantity") BigDecimal orderQuantity
     ) {
         return replayService.replay(orderId, orderQuantity);
+    }
+
+    @GetMapping("/stored-orders/{orderId}")
+    public OrderReplayResult replayStoredOrder(@PathVariable("orderId") UUID orderId) {
+        return replayQueryService.replayStoredOrder(orderId);
     }
 }
