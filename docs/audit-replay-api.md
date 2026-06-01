@@ -115,13 +115,39 @@ GET /api/audit-replay/order-replay/consistency/{orderId}
 
 ## 3. 단건 Execution Replay 조회
 
+### 저장된 order 수량으로 replay
+
+```http
+GET /api/audit-replay/order-replay/stored-orders/{orderId}
+```
+
+저장된 order row를 조회해 `Order.quantity`를 원 주문 수량으로 사용한다.
+
+운영자가 원 주문 수량을 따로 찾지 않아도 되므로 일반적인 단건 조사에서는 이 API를 먼저 사용하는 것이 좋다.
+
+```json
+{
+  "orderId": "00000000-0000-0000-0000-000000019003",
+  "initialStatus": "SENT",
+  "replayedStatus": "PARTIALLY_FILLED",
+  "orderQuantity": 12,
+  "replayedFilledQuantity": 5,
+  "appliedEventCount": 2,
+  "replayedAt": "2026-06-01T00:10:00Z"
+}
+```
+
+### 명시한 orderQuantity로 replay
+
 ```http
 GET /api/audit-replay/order-replay/{orderId}?orderQuantity=10
 ```
 
 특정 주문의 audit trail 이벤트를 순서대로 적용해, 이벤트 기준으로 어떤 상태가 되어야 하는지 재현한다.
 
-현재 replay API는 원 주문 수량을 `orderQuantity` query parameter로 받는다.
+이 API는 원 주문 수량을 `orderQuantity` query parameter로 직접 받는다.
+
+저장된 order row와 다른 수량을 넣어 replay 방어 로직을 확인하거나, 아직 order 저장소 조회를 사용하지 않는 테스트성 호출에 사용할 수 있다.
 
 ```json
 {
@@ -249,6 +275,12 @@ curl "http://localhost:8080/api/audit-replay/order-replay/consistency/00000000-0
 curl "http://localhost:8080/api/audit-replay/order-replay/00000000-0000-0000-0000-000000019001?orderQuantity=10"
 ```
 
+저장된 order 수량 기반 replay:
+
+```bash
+curl "http://localhost:8080/api/audit-replay/order-replay/stored-orders/00000000-0000-0000-0000-000000019003"
+```
+
 audit trail:
 
 ```bash
@@ -259,5 +291,5 @@ curl "http://localhost:8080/api/audit-replay/order-audit-trails/00000000-0000-00
 
 - 현재 API는 MVP 내부 운영용 진단 API다.
 - 인증/권한, pagination, 조건 조회는 아직 포함하지 않았다.
-- 현재 단건 replay API는 `orderQuantity`를 query parameter로 받는다.
-- 이후 order 조회와 replay를 결합하면 클라이언트가 원 주문 수량을 직접 넘기지 않아도 된다.
+- 저장된 order 수량 기반 replay API는 클라이언트가 원 주문 수량을 직접 넘기지 않아도 된다.
+- 명시적 `orderQuantity` replay API는 테스트성 호출이나 수량 검증 실험을 위해 유지한다.
