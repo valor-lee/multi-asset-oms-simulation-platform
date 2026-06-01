@@ -293,3 +293,6 @@ curl "http://localhost:8080/api/audit-replay/order-audit-trails/00000000-0000-00
 - 인증/권한, pagination, 조건 조회는 아직 포함하지 않았다.
 - 저장된 order 수량 기반 replay API는 클라이언트가 원 주문 수량을 직접 넘기지 않아도 된다.
 - 명시적 `orderQuantity` replay API는 테스트성 호출이나 수량 검증 실험을 위해 유지한다.
+- 내부 구현에서는 저장소 조회/API 입력 조립용 query service와 replay/consistency 계산 service를 분리한다.
+  - query service는 저장된 order row를 찾아 계산 입력을 준비한다.
+  - 계산 service는 이미 준비된 입력을 기준으로 replay 또는 mismatch 판단 규칙을 수행한다.
