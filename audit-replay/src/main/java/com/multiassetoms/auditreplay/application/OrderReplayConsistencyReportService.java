@@ -6,6 +6,8 @@ import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Comparator;
@@ -13,6 +15,8 @@ import java.util.List;
 
 @Service
 public class OrderReplayConsistencyReportService {
+
+    private static final int RATIO_SCALE = 4;
 
     private final OrderRepository orderRepository;
     private final OrderReplayConsistencyQueryService consistencyQueryService;
@@ -73,8 +77,17 @@ public class OrderReplayConsistencyReportService {
                 allResults.size(),
                 consistentCount,
                 allResults.size() - consistentCount,
+                inconsistentRatio(allResults.size(), allResults.size() - consistentCount),
                 reportResults,
                 Instant.now(clock)
         );
+    }
+
+    private BigDecimal inconsistentRatio(int totalCount, int inconsistentCount) {
+        if (totalCount == 0) {
+            return BigDecimal.ZERO.setScale(RATIO_SCALE);
+        }
+        return BigDecimal.valueOf(inconsistentCount)
+                .divide(BigDecimal.valueOf(totalCount), RATIO_SCALE, RoundingMode.HALF_UP);
     }
 }

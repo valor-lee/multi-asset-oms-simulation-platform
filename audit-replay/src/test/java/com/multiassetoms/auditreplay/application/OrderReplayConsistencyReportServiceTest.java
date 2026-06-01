@@ -104,6 +104,7 @@ class OrderReplayConsistencyReportServiceTest {
         assertEquals(2, report.totalCount());
         assertEquals(1, report.consistentCount());
         assertEquals(1, report.inconsistentCount());
+        assertEquals(new BigDecimal("0.5000"), report.inconsistentRatio());
         assertEquals(Instant.parse("2026-05-31T01:00:00Z"), report.checkedAt());
         assertEquals(consistentOrderId, report.results().get(0).orderId());
         assertTrue(report.results().get(0).consistent());
@@ -182,6 +183,7 @@ class OrderReplayConsistencyReportServiceTest {
         assertEquals(3, report.totalCount());
         assertEquals(1, report.consistentCount());
         assertEquals(2, report.inconsistentCount());
+        assertEquals(new BigDecimal("0.6667"), report.inconsistentRatio());
         assertEquals(2, report.results().size());
         assertEquals(quantityMismatchOrderId, report.results().get(0).orderId());
         assertEquals(
@@ -203,6 +205,7 @@ class OrderReplayConsistencyReportServiceTest {
         assertEquals(0, report.totalCount());
         assertEquals(0, report.consistentCount());
         assertEquals(0, report.inconsistentCount());
+        assertEquals(new BigDecimal("0.0000"), report.inconsistentRatio());
         assertTrue(report.results().isEmpty());
         assertEquals(Instant.parse("2026-05-31T01:00:00Z"), report.checkedAt());
     }
