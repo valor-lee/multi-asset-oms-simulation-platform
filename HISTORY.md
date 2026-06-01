@@ -101,11 +101,39 @@
 
 - 실행 테스트: `./gradlew :intent-generation:test`
 
+### 2026.06.02 slice
+
+리밸런싱/전략 기반 주문 의도 생성 흐름을 HTTP API로 열어 MVP의 주문 소스 3종을 같은 API 레벨에서 다룰 수 있게 함.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/order-intents/rebalancing` 엔드포인트 추가
+  - `RebalancingOrderIntentRequest`를 받아 `OrderIntentSourceType.REBALANCING` 주문 의도를 생성
+  - `rebalanceRunId`를 `sourceRefId`로 보존해 어떤 리밸런싱 실행에서 나온 주문인지 추적 가능하게 함
+- `POST /api/order-intents/strategy` 엔드포인트 추가
+  - `StrategyOrderIntentRequest`를 받아 `OrderIntentSourceType.STRATEGY` 주문 의도를 생성
+  - `strategySignalId`를 `sourceRefId`로 보존해 어떤 전략 신호에서 나온 주문인지 추적 가능하게 함
+- rebalancing/strategy controller 테스트 추가
+  - 정상 생성 시 `201 Created`와 생성된 `OrderIntent` JSON을 반환하는지 검증
+  - 생성 규칙 위반 시 `OrderIntentExceptionHandler`를 통해 `400 Bad Request`로 변환되는지 검증
+
+#### 메모
+
+- README의 MVP 범위는 수동 주문, 리밸런싱 주문, 전략 신호 주문을 모두 주문 의도 입력 소스로 둔다.
+- 이전에는 manual만 HTTP API가 있고 rebalancing/strategy는 service 진입점만 있어 외부 호출 관점에서는 주문 소스가 비대칭이었다.
+- 이번 변경으로 세 주문 소스 모두 `OrderIntentFactory -> OrderIntentRepository`의 공통 생성/저장 경로를 사용한다.
+- `sourceType`은 주문이 어느 시스템 흐름에서 왔는지 구분하고, `sourceRefId`는 해당 흐름의 원본 실행 ID나 신호 ID를 감사/추적용으로 남기는 역할을 한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :intent-generation:test`
+- 실행 테스트: `./gradlew build`
+
 #### 다음 후보
 
-- `pre-trade-risk` 입력 계약 설계
-- 생성된 `OrderIntent`의 저장/조회 흐름 설계
-- 상태 전이 모델 추가
+- 주문 의도 생성 API 문서화
+- 생성된 intent를 pre-trade risk 평가 API로 넘기는 통합 흐름 정리
+- idempotency key 기반 중복 생성 방어를 API 레벨에서 명확히 검증
 
 ## pre-trade-risk
 
