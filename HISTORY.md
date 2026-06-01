@@ -991,6 +991,32 @@ order replay consistency 흐름을 query service와 계산 service로 분리.
 
 - 실행 테스트: `./gradlew :audit-replay:test`
 
+### 2026.06.02 slice
+
+replay consistency report에 불일치 비율 필드를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `OrderReplayConsistencyReport.inconsistentRatio` 추가
+- `OrderReplayConsistencyReportService`에서 불일치 비율 계산
+  - `inconsistentCount / totalCount`
+  - 소수점 4자리, `HALF_UP` 반올림
+  - 주문이 없으면 `0.0000`
+- report service 테스트에 비율 검증 추가
+- report controller 테스트에 JSON 응답 비율 검증 추가
+- `docs/audit-replay-api.md`에 `inconsistentRatio` 응답 필드 설명 추가
+
+#### 메모
+
+- count만으로도 불일치 규모를 알 수 있지만, 운영 화면이나 알림 조건에서는 전체 대비 비율이 더 직관적이다.
+- 예를 들어 `inconsistentCount = 2`라도 전체가 3건이면 심각하고, 전체가 10,000건이면 다른 판단이 필요하다.
+- `inconsistentRatio`를 API 응답에 포함하면 클라이언트마다 같은 비율 계산을 반복하지 않아도 된다.
+- 0건 report에서는 분모가 0이므로 `0.0000`으로 고정해 응답 계약을 단순하게 유지한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :audit-replay:test`
+
 ## execution
 
 ### 2026.05.17 slice

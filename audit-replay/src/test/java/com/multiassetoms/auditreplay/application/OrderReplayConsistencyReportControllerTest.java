@@ -45,6 +45,7 @@ class OrderReplayConsistencyReportControllerTest {
                 2,
                 1,
                 1,
+                new BigDecimal("0.5000"),
                 List.of(
                         result(
                                 "00000000-0000-0000-0000-000000018001",
@@ -73,6 +74,7 @@ class OrderReplayConsistencyReportControllerTest {
                 .andExpect(jsonPath("$.totalCount").value(2))
                 .andExpect(jsonPath("$.consistentCount").value(1))
                 .andExpect(jsonPath("$.inconsistentCount").value(1))
+                .andExpect(jsonPath("$.inconsistentRatio").value(0.5000))
                 .andExpect(jsonPath("$.results[0].orderId").value("00000000-0000-0000-0000-000000018001"))
                 .andExpect(jsonPath("$.results[0].consistent").value(true))
                 .andExpect(jsonPath("$.results[1].mismatchReasons[0]").value("FILLED_QUANTITY_MISMATCH"))
@@ -85,6 +87,7 @@ class OrderReplayConsistencyReportControllerTest {
                 2,
                 1,
                 1,
+                new BigDecimal("0.5000"),
                 List.of(result(
                         "00000000-0000-0000-0000-000000018003",
                         false,
@@ -103,6 +106,7 @@ class OrderReplayConsistencyReportControllerTest {
                 .andExpect(jsonPath("$.totalCount").value(2))
                 .andExpect(jsonPath("$.consistentCount").value(1))
                 .andExpect(jsonPath("$.inconsistentCount").value(1))
+                .andExpect(jsonPath("$.inconsistentRatio").value(0.5000))
                 .andExpect(jsonPath("$.results.length()").value(1))
                 .andExpect(jsonPath("$.results[0].orderId").value("00000000-0000-0000-0000-000000018003"))
                 .andExpect(jsonPath("$.results[0].mismatchReasons[0]").value("STATUS_MISMATCH"))

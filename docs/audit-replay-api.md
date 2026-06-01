@@ -55,6 +55,7 @@ GET /api/audit-replay/order-replay/consistency-report?inconsistentOnly=true
   "totalCount": 3,
   "consistentCount": 1,
   "inconsistentCount": 2,
+  "inconsistentRatio": 0.6667,
   "results": [
     {
       "orderId": "00000000-0000-0000-0000-000000017004",
@@ -79,6 +80,7 @@ GET /api/audit-replay/order-replay/consistency-report?inconsistentOnly=true
 | `totalCount` | 검사한 전체 주문 수 |
 | `consistentCount` | 현재 order row와 replay 결과가 일치한 주문 수 |
 | `inconsistentCount` | 현재 order row와 replay 결과가 불일치한 주문 수 |
+| `inconsistentRatio` | `inconsistentCount / totalCount` 비율. 주문이 없으면 `0.0000` |
 | `results` | 개별 consistency 결과 목록 |
 | `checkedAt` | report 생성 시각 |
 
