@@ -8,6 +8,14 @@ import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
+/**
+ * 저장된 order row를 조회해 replay 입력을 준비하는 query-facing service다.
+ *
+ * <p>{@link OrderExecutionReplayService}는 order quantity를 이미 알고 있다는 전제에서
+ * audit event를 적용하는 replay engine 역할만 맡긴다. Repository 조회까지 그 안에 넣으면
+ * "주문 조회"와 "이벤트 기반 상태 재현" 책임이 섞이므로, 운영 조회 API에서 필요한 입력 조립은
+ * 이 service가 담당한다.</p>
+ */
 @Service
 public class OrderExecutionReplayQueryService {
 
