@@ -6,6 +6,8 @@
 
 slice 작업 이력은 [HISTORY.md](HISTORY.md)에 모아 기록합니다.
 
+운영 진단용 audit-replay API는 [Audit Replay API Guide](docs/audit-replay-api.md)에 정리합니다.
+
 ## Overview
 
 금융산업 프로세스를 아래 다섯 단계로 나눠볼 수 있습니다.

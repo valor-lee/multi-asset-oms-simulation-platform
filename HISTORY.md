@@ -905,6 +905,33 @@ audit-replay 진단 API를 확장해 특정 주문의 audit trail과 consistency
 
 - 실행 테스트: `./gradlew :audit-replay:test`
 
+### 2026.06.01 slice
+
+audit-replay 운영 진단 API의 사용 흐름과 응답 계약을 문서로 정리.
+
+#### 이번 슬라이스에서 한 일
+
+- `docs/audit-replay-api.md` 추가
+  - 전체 consistency report API 정리
+  - 단건 consistency API 정리
+  - 단건 execution replay API 정리
+  - order audit trail API 정리
+  - 오류 응답 형태와 대표 오류 케이스 정리
+  - 운영자가 불일치 주문을 조사할 때 권장하는 진단 순서 정리
+  - curl 예시 추가
+- `README.md`에 audit-replay API guide 링크 추가
+
+#### 메모
+
+- audit-replay API가 여러 개로 늘어나면서 어떤 API를 언제 호출해야 하는지 문서화가 필요해졌다.
+- 전체 report는 불일치 주문을 찾는 용도이고, 단건 consistency/replay/audit trail API는 특정 주문을 깊게 추적하는 용도다.
+- 문서에 권장 조사 흐름을 남겨두면 이후 운영 UI나 배치 모니터링을 붙일 때도 API 역할을 혼동하지 않는다.
+- 아직 OpenAPI/Swagger 문서는 아니지만, MVP 단계에서는 사람이 읽을 수 있는 markdown 계약 문서로 API 표면을 먼저 고정했다.
+
+#### 검증
+
+- 문서 변경만 수행
+
 ## execution
 
 ### 2026.05.17 slice
