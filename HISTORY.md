@@ -51,6 +51,27 @@
 
 ## intent-generation
 
+### 2026.06.03 slice
+
+수동/리밸런싱/전략 주문 의도 생성 API를 항상 참고할 수 있도록 별도 사용 가이드로 정리.
+
+#### 이번 슬라이스에서 한 일
+
+- `docs/order-intent-api.md` 추가
+  - `POST /api/order-intents/manual`
+  - `POST /api/order-intents/rebalancing`
+  - `POST /api/order-intents/strategy`
+- source별 request/response 예시 추가
+- `sourceType`과 `sourceRefId`가 어떤 추적 의미를 갖는지 정리
+- request/response field reference와 대표 검증 오류 정리
+- `README.md`, `intent-generation/README.md`에 문서 링크 추가
+
+#### 메모
+
+- 주문 의도 API는 MVP의 첫 입력 지점이므로, API 계약을 코드만 보고 추론하지 않도록 문서로 고정했다.
+- manual/rebalancing/strategy는 서로 다른 source를 갖지만 생성 후에는 모두 공통 `OrderIntent` 파이프라인으로 들어간다.
+- 이후 `OrderIntent` 조회 API나 idempotency key 중복 요청 방어를 추가할 때 이 문서를 함께 확장하면 된다.
+
 ### 2026.04.25 slice
 
 공통 `OrderIntent` 모델과 기본 생성 API를 만들고, 다른 모듈이 참조 가능한 안정된 계약부터 세우는 방향으로 진행.
