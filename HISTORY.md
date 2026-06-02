@@ -4,6 +4,24 @@
 
 ## cross-cutting
 
+### 2026.06.02 slice
+
+새 HTTP API를 만들 때 반복해서 참고할 수 있는 RESTful API 설계 전략 문서를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `docs/restful-api-strategy.md` 추가
+  - URL naming, HTTP method, status code, request/response, error response 기준 정리
+  - controller를 얇게 유지하고 application service로 도메인 로직을 위임하는 기준 정리
+  - idempotency key, query parameter, API 테스트, 문서화 기준 정리
+  - 현재 프로젝트의 intent-generation/audit-replay API 목록을 표로 정리
+- `README.md`에 RESTful API 전략 문서 링크 추가
+
+#### 메모
+
+- 앞으로 API를 추가할 때 endpoint 이름, status code, 에러 응답 모양을 매번 새로 고민하지 않고 같은 기준에서 출발하기 위한 문서다.
+- 금융 OMS 도메인은 감사 추적과 장애 분석이 중요하므로, 단순 CRUD보다 리소스 이름과 상태 전이 의미가 명확한 API 계약을 우선한다.
+
 ### 2026.05.17 slice
 
 시간 의존 로직이 각 서비스 내부에서 직접 시스템 시간을 만들지 않도록 공통 `Clock` 주입 구조로 정리.
