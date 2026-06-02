@@ -1,7 +1,6 @@
 package com.multiassetoms.intentgeneration.manual;
 
-import com.multiassetoms.intentgeneration.application.OrderIntentFactory;
-import com.multiassetoms.intentgeneration.application.OrderIntentRepository;
+import com.multiassetoms.intentgeneration.application.OrderIntentCreator;
 import com.multiassetoms.intentgeneration.model.CreateOrderIntentCommand;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
 import com.multiassetoms.intentgeneration.model.OrderIntentSourceType;
@@ -10,19 +9,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class ManualOrderIntentService {
 
-    private final OrderIntentFactory orderIntentFactory;
-    private final OrderIntentRepository orderIntentRepository;
+    private final OrderIntentCreator orderIntentCreator;
 
-    public ManualOrderIntentService(
-            OrderIntentFactory orderIntentFactory,
-            OrderIntentRepository orderIntentRepository
-    ) {
-        this.orderIntentFactory = orderIntentFactory;
-        this.orderIntentRepository = orderIntentRepository;
+    public ManualOrderIntentService(OrderIntentCreator orderIntentCreator) {
+        this.orderIntentCreator = orderIntentCreator;
     }
 
     public OrderIntent create(ManualOrderIntentRequest request) {
-        OrderIntent intent = orderIntentFactory.create(new CreateOrderIntentCommand(
+        return orderIntentCreator.create(new CreateOrderIntentCommand(
                 request.portfolioId(),
                 request.instrumentId(),
                 OrderIntentSourceType.MANUAL,
@@ -36,6 +30,5 @@ public class ManualOrderIntentService {
                 request.idempotencyKey(),
                 request.createdBy()
         ));
-        return orderIntentRepository.save(intent);
     }
 }
