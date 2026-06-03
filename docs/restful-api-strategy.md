@@ -163,6 +163,8 @@ OrderIntent intent = orderIntentFactory.create(new CreateOrderIntentCommand(
 
 반대로 같은 `idempotencyKey`인데 요청 내용이 다르면 재시도가 아니라 key 재사용 충돌로 보고 `409 Conflict`를 반환한다. 조용히 기존 결과를 반환하면 호출자는 전혀 다른 주문이 생성됐다고 오해할 수 있기 때문이다.
 
+같은 요청 내용이라도 `idempotencyKey`가 다르면 새 요청으로 본다. 같은 종목/수량 주문을 의도적으로 여러 번 낼 수 있기 때문이다. 이런 케이스의 중복 주문 의심 여부는 idempotency가 아니라 duplicate order detection이나 pre-trade risk rule에서 별도로 판단한다.
+
 ### 금액과 수량은 문자열 또는 숫자 정책을 일관되게 둔다
 
 Java에서는 `BigDecimal`을 사용한다. JSON에서는 현재 테스트와 문서에서 숫자 형태를 사용하되, 소수 정밀도가 중요한 자산으로 확장할 때 문자열 입력도 검토한다.

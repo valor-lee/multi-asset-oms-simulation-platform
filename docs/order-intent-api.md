@@ -277,6 +277,25 @@ manual-20260603153000-018d2b7e
 
 위 값은 주문 내용만으로 만든 key라서, 같은 종목을 같은 수량으로 의도적으로 다시 주문할 때도 같은 key가 될 수 있다.
 
+### Same payload with different key
+
+같은 요청 내용이라도 `idempotencyKey`가 다르면 서버는 다른 주문 의도 생성 요청으로 처리한다.
+
+```text
+manual-20260603153000-a
+manual-20260603153100-b
+```
+
+위 두 key가 같은 payload와 함께 들어오더라도 새 `OrderIntent`가 각각 생성될 수 있다.
+
+이 정책은 같은 종목/수량 주문을 사용자가 의도적으로 여러 번 넣을 수 있기 때문이다.
+`idempotencyKey`는 "payload가 같은가"를 판단하는 값이 아니라, 클라이언트가 "이 요청은 같은 재시도 묶음이다"라고 표시하는 요청 단위 식별자다.
+
+따라서 timeout이나 네트워크 재시도처럼 같은 사용자 액션을 다시 보내는 경우에는 반드시 같은 `idempotencyKey`를 재사용해야 한다.
+새 key를 보내면 서버는 새 주문 의도로 처리할 수 있다.
+
+payload는 같지만 key가 다른 중복 주문 의심 케이스는 idempotency 정책이 아니라 별도 duplicate order detection 또는 pre-trade risk rule에서 다룬다.
+
 ### Response fields
 
 | Field | Meaning |
