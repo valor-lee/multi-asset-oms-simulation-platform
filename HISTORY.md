@@ -53,24 +53,28 @@
 
 ### 2026.06.03 slice
 
-주문 의도 생성 API에서 같은 `idempotencyKey`가 재전송될 때 중복 `OrderIntent`가 생성되지 않도록 방어.
+주문 의도 생성 API에서 `idempotencyKey` 재전송과 key 재사용 충돌을 구분하도록 보강.
 
 #### 이번 슬라이스에서 한 일
 
 - `OrderIntentCreator` 추가
   - `idempotencyKey`가 있으면 repository에서 기존 `OrderIntent`를 먼저 조회
-  - 기존 intent가 있으면 새로 생성하지 않고 기존 intent를 반환
+  - 같은 key와 같은 요청 내용이면 새로 생성하지 않고 기존 intent를 반환
+  - 같은 key지만 요청 내용이 다르면 `OrderIntentIdempotencyConflictException` 발생
   - 기존 intent가 없으면 `OrderIntentFactory`로 생성한 뒤 저장
   - in-memory MVP 환경에서 같은 key가 동시에 들어오는 상황을 줄이기 위해 공통 생성 지점을 동기화
 - `ManualOrderIntentService`, `RebalancingOrderIntentService`, `StrategyOrderIntentService`가 공통 `OrderIntentCreator`를 사용하도록 변경
-- idempotency key 정규화 후 조회 테스트 추가
-- `docs/order-intent-api.md`, `docs/restful-api-strategy.md`에 중복 요청 정책 반영
+- `OrderIntentIdempotencyConflictException` 추가
+- `OrderIntentExceptionHandler`에서 idempotency 충돌을 `409 Conflict`로 응답하도록 변경
+- idempotency key 정규화, 동일 key 재시도, 동일 key payload 충돌 테스트 추가
+- `docs/order-intent-api.md`, `docs/restful-api-strategy.md`에 중복 요청/충돌 정책 반영
 
 #### 메모
 
 - 주문 생성 계열 API는 네트워크 재시도, 브라우저 중복 클릭, worker 재처리로 같은 요청이 반복될 수 있다.
-- 같은 `idempotencyKey`가 들어왔을 때 최초 생성 결과를 반환하면 불필요한 중복 주문 의도 생성을 줄일 수 있다.
-- 현재 정책은 같은 key면 기존 결과를 반환하는 방식이며, 이후 source나 request payload가 다른데 key가 같은 충돌 상황은 별도 `409 Conflict` 정책으로 세분화할 수 있다.
+- 같은 `idempotencyKey`와 같은 요청 내용이면 정상 재시도로 보고 최초 생성 결과를 반환한다.
+- 같은 `idempotencyKey`인데 주문 수량, 가격, source, 종목 등 요청 내용이 다르면 재시도가 아니라 key 충돌로 보고 `409 Conflict`를 반환한다.
+- 충돌을 조용히 기존 결과로 반환하면 호출자는 다른 주문이 생성됐다고 오해할 수 있으므로 명시적으로 실패시키는 편이 안전하다.
 
 #### 검증
 
@@ -96,7 +100,7 @@
 
 - 주문 의도 API는 MVP의 첫 입력 지점이므로, API 계약을 코드만 보고 추론하지 않도록 문서로 고정했다.
 - manual/rebalancing/strategy는 서로 다른 source를 갖지만 생성 후에는 모두 공통 `OrderIntent` 파이프라인으로 들어간다.
-- 이후 `OrderIntent` 조회 API나 source별 idempotency key 충돌 정책을 추가할 때 이 문서를 함께 확장하면 된다.
+- 이후 `OrderIntent` 조회 API나 error response의 `code/path/occurredAt` 확장을 추가할 때 이 문서를 함께 확장하면 된다.
 
 ### 2026.04.25 slice
 
@@ -198,7 +202,7 @@
 
 - 주문 의도 생성 API 문서화
 - 생성된 intent를 pre-trade risk 평가 API로 넘기는 통합 흐름 정리
-- source별 idempotency key 충돌 정책 세분화
+- idempotency key 기반 중복 생성 방어를 API 레벨에서 명확히 검증
 
 ## pre-trade-risk
 

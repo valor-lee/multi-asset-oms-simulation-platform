@@ -3,6 +3,7 @@ package com.multiassetoms.intentgeneration.application;
 import com.multiassetoms.intentgeneration.infrastructure.InMemoryOrderIntentRepository;
 import com.multiassetoms.intentgeneration.model.CreateOrderIntentCommand;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
+import com.multiassetoms.intentgeneration.model.OrderIntentIdempotencyConflictException;
 import com.multiassetoms.intentgeneration.model.OrderIntentSourceType;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.intentgeneration.model.OrderType;
@@ -17,6 +18,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class OrderIntentCreatorTest {
 
@@ -47,7 +49,26 @@ class OrderIntentCreatorTest {
         assertEquals(first, second);
     }
 
+    @Test
+    void rejectsSameIdempotencyKeyWithDifferentPayload() {
+        orderIntentCreator.create(command("manual-key-3"));
+
+        OrderIntentIdempotencyConflictException exception = assertThrows(
+                OrderIntentIdempotencyConflictException.class,
+                () -> orderIntentCreator.create(command("manual-key-3", new BigDecimal("20")))
+        );
+
+        assertEquals(
+                "idempotencyKey already exists for a different order intent request",
+                exception.getMessage()
+        );
+    }
+
     private CreateOrderIntentCommand command(String idempotencyKey) {
+        return command(idempotencyKey, new BigDecimal("10"));
+    }
+
+    private CreateOrderIntentCommand command(String idempotencyKey, BigDecimal requestedQty) {
         return new CreateOrderIntentCommand(
                 "portfolio-1",
                 "005930",
@@ -55,7 +76,7 @@ class OrderIntentCreatorTest {
                 null,
                 OrderSide.BUY,
                 OrderType.LIMIT,
-                new BigDecimal("10"),
+                requestedQty,
                 new BigDecimal("55000"),
                 TimeInForce.DAY,
                 "operator order",

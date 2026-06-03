@@ -34,7 +34,8 @@ HTTP request
 | `LIMIT` order | `limitPrice`가 반드시 있어야 한다. |
 | `MARKET` order | `limitPrice`가 없어야 한다. |
 | missing `idempotencyKey` | 기본 UUID 문자열을 생성한다. |
-| duplicate `idempotencyKey` | 새로 생성하지 않고 기존 `OrderIntent`를 반환한다. |
+| duplicate `idempotencyKey` with same payload | 새로 생성하지 않고 기존 `OrderIntent`를 반환한다. |
+| duplicate `idempotencyKey` with different payload | `409 Conflict`로 거절한다. |
 | initial `status` | 생성 직후 상태는 `CREATED`다. |
 
 ## Source 구분
@@ -228,7 +229,7 @@ Content-Type: application/json
 | `limitPrice` | conditional | `LIMIT`이면 필수, `MARKET`이면 `null` |
 | `timeInForce` | yes | 주문 유효 조건. 현재 MVP에서는 `DAY`를 주로 사용한다. |
 | `reason` | no | 주문 의도 생성 사유 |
-| `idempotencyKey` | no | 중복 생성 방지용 키. 같은 값으로 재요청하면 기존 `OrderIntent`를 반환한다. 비어 있으면 서버가 생성한다. |
+| `idempotencyKey` | no | 중복 생성 방지용 키. 같은 값과 같은 요청 내용으로 재요청하면 기존 `OrderIntent`를 반환하고, 같은 값으로 다른 요청 내용이 들어오면 `409 Conflict`로 거절한다. 비어 있으면 서버가 생성한다. |
 | `createdBy` | yes | 생성 주체 |
 
 ### Response fields
@@ -263,6 +264,13 @@ Content-Type: application/json
 | `LIMIT`인데 `limitPrice`가 없음 | `limitPrice is required for LIMIT orders` |
 | `MARKET`인데 `limitPrice`가 있음 | `limitPrice must be null for MARKET orders` |
 | `requestedQty <= 0` | `requestedQty must be greater than zero` |
+| 같은 `idempotencyKey`로 다른 요청 내용이 들어옴 | `idempotencyKey already exists for a different order intent request` |
+
+같은 `idempotencyKey`와 같은 요청 내용이 재전송되면 오류가 아니라 최초 생성된 `OrderIntent`를 다시 반환한다.
+이는 네트워크 재시도나 클라이언트 중복 전송을 안전하게 처리하기 위한 정책이다.
+
+같은 `idempotencyKey`인데 주문 수량, 가격, source, 종목 같은 요청 내용이 달라지면 재시도가 아니라 키 충돌로 본다.
+이 경우 새 주문 의도를 만들지 않고 `409 Conflict`를 반환한다.
 
 ## 다음 연결 지점
 
@@ -282,5 +290,5 @@ API 관점에서 다음 확장 후보는 다음과 같다.
 
 - `GET /api/order-intents/{intentId}` 조회 API
 - `GET /api/order-intents?idempotencyKey=...` 조회 API
-- source별 `idempotencyKey` 충돌 정책 세분화
+- conflict response에 error code/path/occurredAt 추가
 - pre-trade risk 평가 API와 주문 의도 생성 API의 연결 문서화
