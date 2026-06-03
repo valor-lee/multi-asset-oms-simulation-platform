@@ -69,12 +69,14 @@
 - idempotency key 정규화, 동일 key 재시도, 동일 key payload 충돌 테스트 추가
 - `docs/order-intent-api.md`, `docs/restful-api-strategy.md`에 중복 요청/충돌 정책 반영
 - `docs/order-intent-api.md`에 클라이언트가 생성할 `idempotencyKey` 권장 포맷과 예시 추가
+- 같은 payload라도 다른 `idempotencyKey`면 별도 요청으로 처리하고, 중복 주문 의심은 별도 duplicate/risk rule에서 다루기로 문서화
 
 #### 메모
 
 - 주문 생성 계열 API는 네트워크 재시도, 브라우저 중복 클릭, worker 재처리로 같은 요청이 반복될 수 있다.
 - 같은 `idempotencyKey`와 같은 요청 내용이면 정상 재시도로 보고 최초 생성 결과를 반환한다.
 - 같은 `idempotencyKey`인데 주문 수량, 가격, source, 종목 등 요청 내용이 다르면 재시도가 아니라 key 충돌로 보고 `409 Conflict`를 반환한다.
+- 같은 요청 내용이어도 `idempotencyKey`가 다르면 새 주문 의도 생성 요청으로 본다.
 - 충돌을 조용히 기존 결과로 반환하면 호출자는 다른 주문이 생성됐다고 오해할 수 있으므로 명시적으로 실패시키는 편이 안전하다.
 
 #### 검증
@@ -91,6 +93,8 @@
   - hash가 같으면 기존 `OrderIntent` 반환
   - hash가 다르면 `409 Conflict` 반환
 - DB 기반 idempotency가 들어오면 `OrderIntentCreator.create()`의 JVM-local `synchronized` 의존 제거 검토
+- 같은 payload와 다른 `idempotencyKey`가 짧은 시간 안에 반복되는 경우를 탐지하는 duplicate order rule 검토
+- rebalancing/strategy는 `sourceRefId` 기준 중복 주문 방어 정책 검토
 
 ### 2026.06.03 slice
 
