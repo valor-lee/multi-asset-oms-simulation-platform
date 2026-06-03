@@ -221,6 +221,30 @@
 
 ## pre-trade-risk
 
+### 2026.06.03 slice
+
+`idempotencyKey`가 다른 동일 payload 주문 의심 케이스를 pre-trade risk의 duplicate open order 규칙에서 추적하기 쉽게 보강.
+
+#### 이번 슬라이스에서 한 일
+
+- `PreTradeRiskOpenOrderContext`에 `duplicateOpenOrderId` 추가
+  - 기존 `duplicateOpenOrderExists` Boolean 생성자는 유지해 기존 호출부 호환
+- `DuplicateOpenOrderRule`이 중복 open order id를 받으면 rule result의 `evaluatedValue`에 기록하도록 변경
+- duplicate open order id가 평가 결과에 남는 테스트 추가
+- `pre-trade-risk/README.md`에 idempotency와 duplicate open order rule의 책임 차이 정리
+
+#### 메모
+
+- `idempotencyKey`는 같은 요청 재시도를 묶는 API 생성 단계 장치다.
+- 같은 payload라도 다른 `idempotencyKey`가 들어오면 별도 요청으로 처리될 수 있다.
+- 이런 요청이 실제 중복 주문인지 여부는 open order 조회 결과를 바탕으로 pre-trade risk에서 판단한다.
+- 현재는 저장소 조회를 직접 붙이지 않고, 호출자가 조회한 duplicate 여부와 매칭된 open order id를 context로 전달하는 계약을 고정한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :pre-trade-risk:test`
+- 실행 테스트: `./gradlew build`
+
 ### 2026.04.29 slice
 
 `intent-generation`에서 생성된 `OrderIntent`를 사전 리스크 검사 입력으로 받을 수 있도록 기본 계약을 세움.
