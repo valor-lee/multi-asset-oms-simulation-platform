@@ -3,6 +3,7 @@ package com.multiassetoms.intentgeneration.manual;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.multiassetoms.intentgeneration.api.OrderIntentExceptionHandler;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
+import com.multiassetoms.intentgeneration.model.OrderIntentIdempotencyConflictException;
 import com.multiassetoms.intentgeneration.model.OrderIntentSourceType;
 import com.multiassetoms.intentgeneration.model.OrderIntentStatus;
 import com.multiassetoms.intentgeneration.model.OrderIntentValidationException;
@@ -151,5 +152,32 @@ class ManualOrderIntentControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("limitPrice must be null for MARKET orders"));
+    }
+
+    @Test
+    void returnsConflictWhenIdempotencyKeyIsReusedWithDifferentPayload() throws Exception {
+        ManualOrderIntentRequest request = new ManualOrderIntentRequest(
+                "portfolio-1",
+                "005930",
+                OrderSide.BUY,
+                OrderType.LIMIT,
+                new BigDecimal("20"),
+                new BigDecimal("55000"),
+                TimeInForce.DAY,
+                "operator order",
+                "manual-key-1",
+                "operator"
+        );
+        when(manualOrderIntentService.create(any(ManualOrderIntentRequest.class)))
+                .thenThrow(new OrderIntentIdempotencyConflictException(
+                        "idempotencyKey already exists for a different order intent request"
+                ));
+
+        mockMvc.perform(post("/api/order-intents/manual")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("idempotencyKey already exists for a different order intent request"));
     }
 }

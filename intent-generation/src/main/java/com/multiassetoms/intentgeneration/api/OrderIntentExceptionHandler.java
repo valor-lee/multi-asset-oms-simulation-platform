@@ -1,5 +1,6 @@
 package com.multiassetoms.intentgeneration.api;
 
+import com.multiassetoms.intentgeneration.model.OrderIntentIdempotencyConflictException;
 import com.multiassetoms.intentgeneration.model.OrderIntentValidationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -12,6 +13,12 @@ public class OrderIntentExceptionHandler {
     @ExceptionHandler(OrderIntentValidationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleValidationException(OrderIntentValidationException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(OrderIntentIdempotencyConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleIdempotencyConflictException(OrderIntentIdempotencyConflictException exception) {
         return new ErrorResponse(exception.getMessage());
     }
 

@@ -34,7 +34,8 @@ HTTP request
 | `LIMIT` order | `limitPrice`가 반드시 있어야 한다. |
 | `MARKET` order | `limitPrice`가 없어야 한다. |
 | missing `idempotencyKey` | 기본 UUID 문자열을 생성한다. |
-| duplicate `idempotencyKey` | 새로 생성하지 않고 기존 `OrderIntent`를 반환한다. |
+| duplicate `idempotencyKey` with same payload | 새로 생성하지 않고 기존 `OrderIntent`를 반환한다. |
+| duplicate `idempotencyKey` with different payload | `409 Conflict`로 거절한다. |
 | initial `status` | 생성 직후 상태는 `CREATED`다. |
 
 ## Source 구분
@@ -228,8 +229,53 @@ Content-Type: application/json
 | `limitPrice` | conditional | `LIMIT`이면 필수, `MARKET`이면 `null` |
 | `timeInForce` | yes | 주문 유효 조건. 현재 MVP에서는 `DAY`를 주로 사용한다. |
 | `reason` | no | 주문 의도 생성 사유 |
-| `idempotencyKey` | no | 중복 생성 방지용 키. 같은 값으로 재요청하면 기존 `OrderIntent`를 반환한다. 비어 있으면 서버가 생성한다. |
+| `idempotencyKey` | no | 중복 생성 방지용 키. 같은 값과 같은 요청 내용으로 재요청하면 기존 `OrderIntent`를 반환하고, <br> 같은 값으로 다른 요청 내용이 들어오면 `409 Conflict`로 거절한다. <br> 비어 있으면 서버가 생성한다. |
 | `createdBy` | yes | 생성 주체 |
+
+### idempotencyKey format
+
+`idempotencyKey`는 클라이언트가 요청 단위로 생성하는 문자열이다.
+서버는 이 값을 보고 "이 요청이 이전 요청의 재시도인지" 판단한다.
+
+권장 포맷은 다음 중 하나다.
+
+```text
+{source}-{clientRequestId}
+{source}-{yyyyMMddHHmmss}-{uuid}
+{source}-{businessReferenceId}-{uuid}
+```
+
+예시:
+
+```text
+manual-20260603153000-018d2b7e
+rebalancing-rebalance-run-1-018d2b7e
+strategy-signal-1-018d2b7e
+```
+
+작성 기준:
+
+| Rule | Meaning |
+| --- | --- |
+| 충분히 고유해야 한다. | 서로 다른 주문 요청이 같은 key를 쓰면 `409 Conflict`가 날 수 있다. |
+| 같은 요청을 재시도할 때는 같은 key를 재사용한다. | timeout, retry, 중복 클릭 상황에서 기존 `OrderIntent`를 반환받기 위함이다. |
+| 다른 주문을 새로 만들 때는 새 key를 사용한다. | 같은 종목/수량 주문이라도 의도적으로 다시 주문하는 경우는 별도 요청이다. |
+| request payload hash를 그대로 key로 쓰지 않는다. | 같은 내용의 다른 주문까지 중복으로 오해할 수 있다. |
+| 앞뒤 공백은 붙이지 않는다. | 서버가 trim 처리하지만, 클라이언트는 공백 없는 값을 보내는 것이 좋다. |
+
+좋은 예:
+
+```text
+manual-20260603153000-018d2b7e
+```
+
+피해야 할 예:
+
+```text
+005930-BUY-10
+```
+
+위 값은 주문 내용만으로 만든 key라서, 같은 종목을 같은 수량으로 의도적으로 다시 주문할 때도 같은 key가 될 수 있다.
 
 ### Response fields
 
@@ -263,6 +309,13 @@ Content-Type: application/json
 | `LIMIT`인데 `limitPrice`가 없음 | `limitPrice is required for LIMIT orders` |
 | `MARKET`인데 `limitPrice`가 있음 | `limitPrice must be null for MARKET orders` |
 | `requestedQty <= 0` | `requestedQty must be greater than zero` |
+| 같은 `idempotencyKey`로 다른 요청 내용이 들어옴 | `idempotencyKey already exists for a different order intent request` |
+
+같은 `idempotencyKey`와 같은 요청 내용이 재전송되면 오류가 아니라 최초 생성된 `OrderIntent`를 다시 반환한다.
+이는 네트워크 재시도나 클라이언트 중복 전송을 안전하게 처리하기 위한 정책이다.
+
+같은 `idempotencyKey`인데 주문 수량, 가격, source, 종목 같은 요청 내용이 달라지면 재시도가 아니라 키 충돌로 본다.
+이 경우 새 주문 의도를 만들지 않고 `409 Conflict`를 반환한다.
 
 ## 다음 연결 지점
 
@@ -282,5 +335,5 @@ API 관점에서 다음 확장 후보는 다음과 같다.
 
 - `GET /api/order-intents/{intentId}` 조회 API
 - `GET /api/order-intents?idempotencyKey=...` 조회 API
-- source별 `idempotencyKey` 충돌 정책 세분화
+- conflict response에 error code/path/occurredAt 추가
 - pre-trade risk 평가 API와 주문 의도 생성 API의 연결 문서화
