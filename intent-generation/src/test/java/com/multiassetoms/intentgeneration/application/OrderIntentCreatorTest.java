@@ -1,11 +1,9 @@
-package com.multiassetoms.intentgeneration.manual;
+package com.multiassetoms.intentgeneration.application;
 
-import com.multiassetoms.intentgeneration.application.OrderIntentFactory;
-import com.multiassetoms.intentgeneration.application.OrderIntentCreator;
 import com.multiassetoms.intentgeneration.infrastructure.InMemoryOrderIntentRepository;
+import com.multiassetoms.intentgeneration.model.CreateOrderIntentCommand;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
 import com.multiassetoms.intentgeneration.model.OrderIntentSourceType;
-import com.multiassetoms.intentgeneration.model.OrderIntentStatus;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.intentgeneration.model.OrderType;
 import com.multiassetoms.intentgeneration.model.TimeInForce;
@@ -19,35 +17,50 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ManualOrderIntentServiceTest {
+class OrderIntentCreatorTest {
 
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
-    private final Clock fixedClock = Clock.fixed(Instant.parse("2026-04-25T00:00:00Z"), ZoneOffset.UTC);
+    private final Clock fixedClock = Clock.fixed(Instant.parse("2026-06-03T00:00:00Z"), ZoneOffset.UTC);
     private final OrderIntentFactory orderIntentFactory = new OrderIntentFactory(validator, fixedClock);
     private final InMemoryOrderIntentRepository repository = new InMemoryOrderIntentRepository();
     private final OrderIntentCreator orderIntentCreator = new OrderIntentCreator(orderIntentFactory, repository);
-    private final ManualOrderIntentService service = new ManualOrderIntentService(orderIntentCreator);
 
     @Test
-    void createsAndStoresManualOrderIntent() {
-        OrderIntent intent = service.create(new ManualOrderIntentRequest(
+    void returnsExistingIntentWhenIdempotencyKeyAlreadyExists() {
+        CreateOrderIntentCommand command = command("manual-key-1");
+        OrderIntent first = orderIntentCreator.create(command);
+
+        OrderIntent second = orderIntentCreator.create(command);
+
+        assertEquals(first, second);
+        assertEquals(first.intentId(), second.intentId());
+        assertEquals(first.createdAt(), second.createdAt());
+    }
+
+    @Test
+    void normalizesIdempotencyKeyBeforeLookup() {
+        OrderIntent first = orderIntentCreator.create(command("manual-key-2"));
+
+        OrderIntent second = orderIntentCreator.create(command("  manual-key-2  "));
+
+        assertEquals(first, second);
+    }
+
+    private CreateOrderIntentCommand command(String idempotencyKey) {
+        return new CreateOrderIntentCommand(
                 "portfolio-1",
                 "005930",
+                OrderIntentSourceType.MANUAL,
+                null,
                 OrderSide.BUY,
                 OrderType.LIMIT,
                 new BigDecimal("10"),
                 new BigDecimal("55000"),
                 TimeInForce.DAY,
                 "operator order",
-                "manual-key-1",
+                idempotencyKey,
                 "operator"
-        ));
-
-        assertEquals(OrderIntentSourceType.MANUAL, intent.sourceType());
-        assertEquals(OrderIntentStatus.CREATED, intent.status());
-        assertTrue(repository.findByIntentId(intent.intentId()).isPresent());
-        assertEquals(intent, repository.findByIdempotencyKey("manual-key-1").orElseThrow());
+        );
     }
 }

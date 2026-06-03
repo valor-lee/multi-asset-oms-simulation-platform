@@ -53,6 +53,32 @@
 
 ### 2026.06.03 slice
 
+주문 의도 생성 API에서 같은 `idempotencyKey`가 재전송될 때 중복 `OrderIntent`가 생성되지 않도록 방어.
+
+#### 이번 슬라이스에서 한 일
+
+- `OrderIntentCreator` 추가
+  - `idempotencyKey`가 있으면 repository에서 기존 `OrderIntent`를 먼저 조회
+  - 기존 intent가 있으면 새로 생성하지 않고 기존 intent를 반환
+  - 기존 intent가 없으면 `OrderIntentFactory`로 생성한 뒤 저장
+  - in-memory MVP 환경에서 같은 key가 동시에 들어오는 상황을 줄이기 위해 공통 생성 지점을 동기화
+- `ManualOrderIntentService`, `RebalancingOrderIntentService`, `StrategyOrderIntentService`가 공통 `OrderIntentCreator`를 사용하도록 변경
+- idempotency key 정규화 후 조회 테스트 추가
+- `docs/order-intent-api.md`, `docs/restful-api-strategy.md`에 중복 요청 정책 반영
+
+#### 메모
+
+- 주문 생성 계열 API는 네트워크 재시도, 브라우저 중복 클릭, worker 재처리로 같은 요청이 반복될 수 있다.
+- 같은 `idempotencyKey`가 들어왔을 때 최초 생성 결과를 반환하면 불필요한 중복 주문 의도 생성을 줄일 수 있다.
+- 현재 정책은 같은 key면 기존 결과를 반환하는 방식이며, 이후 source나 request payload가 다른데 key가 같은 충돌 상황은 별도 `409 Conflict` 정책으로 세분화할 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :intent-generation:test`
+- 실행 테스트: `./gradlew build`
+
+### 2026.06.03 slice
+
 수동/리밸런싱/전략 주문 의도 생성 API를 항상 참고할 수 있도록 별도 사용 가이드로 정리.
 
 #### 이번 슬라이스에서 한 일
@@ -70,7 +96,7 @@
 
 - 주문 의도 API는 MVP의 첫 입력 지점이므로, API 계약을 코드만 보고 추론하지 않도록 문서로 고정했다.
 - manual/rebalancing/strategy는 서로 다른 source를 갖지만 생성 후에는 모두 공통 `OrderIntent` 파이프라인으로 들어간다.
-- 이후 `OrderIntent` 조회 API나 idempotency key 중복 요청 방어를 추가할 때 이 문서를 함께 확장하면 된다.
+- 이후 `OrderIntent` 조회 API나 source별 idempotency key 충돌 정책을 추가할 때 이 문서를 함께 확장하면 된다.
 
 ### 2026.04.25 slice
 
@@ -172,7 +198,7 @@
 
 - 주문 의도 생성 API 문서화
 - 생성된 intent를 pre-trade risk 평가 API로 넘기는 통합 흐름 정리
-- idempotency key 기반 중복 생성 방어를 API 레벨에서 명확히 검증
+- source별 idempotency key 충돌 정책 세분화
 
 ## pre-trade-risk
 

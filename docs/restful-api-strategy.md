@@ -159,7 +159,7 @@ OrderIntent intent = orderIntentFactory.create(new CreateOrderIntentCommand(
 }
 ```
 
-MVP 단계에서는 저장소 조회 계약을 먼저 두고, 이후 API 레벨에서 같은 `idempotencyKey` 요청이 들어오면 최초 생성 결과를 반환하도록 강화한다.
+현재 생성 API는 같은 `idempotencyKey` 요청이 다시 들어오면 새 주문 의도를 만들지 않고 최초 생성된 `OrderIntent`를 반환한다. 이 정책은 네트워크 재시도, 브라우저 중복 클릭, worker 재처리 상황에서 중복 주문을 줄이기 위한 기본 방어선이다.
 
 ### 금액과 수량은 문자열 또는 숫자 정책을 일관되게 둔다
 

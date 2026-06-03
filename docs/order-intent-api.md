@@ -34,6 +34,7 @@ HTTP request
 | `LIMIT` order | `limitPrice`가 반드시 있어야 한다. |
 | `MARKET` order | `limitPrice`가 없어야 한다. |
 | missing `idempotencyKey` | 기본 UUID 문자열을 생성한다. |
+| duplicate `idempotencyKey` | 새로 생성하지 않고 기존 `OrderIntent`를 반환한다. |
 | initial `status` | 생성 직후 상태는 `CREATED`다. |
 
 ## Source 구분
@@ -227,7 +228,7 @@ Content-Type: application/json
 | `limitPrice` | conditional | `LIMIT`이면 필수, `MARKET`이면 `null` |
 | `timeInForce` | yes | 주문 유효 조건. 현재 MVP에서는 `DAY`를 주로 사용한다. |
 | `reason` | no | 주문 의도 생성 사유 |
-| `idempotencyKey` | no | 중복 생성 방지용 키. 비어 있으면 서버가 생성한다. |
+| `idempotencyKey` | no | 중복 생성 방지용 키. 같은 값으로 재요청하면 기존 `OrderIntent`를 반환한다. 비어 있으면 서버가 생성한다. |
 | `createdBy` | yes | 생성 주체 |
 
 ### Response fields
@@ -281,5 +282,5 @@ API 관점에서 다음 확장 후보는 다음과 같다.
 
 - `GET /api/order-intents/{intentId}` 조회 API
 - `GET /api/order-intents?idempotencyKey=...` 조회 API
-- 생성 API의 idempotency key 중복 요청 방어
+- source별 `idempotencyKey` 충돌 정책 세분화
 - pre-trade risk 평가 API와 주문 의도 생성 API의 연결 문서화
