@@ -68,6 +68,7 @@
 - `OrderIntentExceptionHandler`에서 idempotency 충돌을 `409 Conflict`로 응답하도록 변경
 - idempotency key 정규화, 동일 key 재시도, 동일 key payload 충돌 테스트 추가
 - `docs/order-intent-api.md`, `docs/restful-api-strategy.md`에 중복 요청/충돌 정책 반영
+- `docs/order-intent-api.md`에 클라이언트가 생성할 `idempotencyKey` 권장 포맷과 예시 추가
 
 #### 메모
 
