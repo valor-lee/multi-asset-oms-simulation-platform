@@ -81,6 +81,16 @@
 - 실행 테스트: `./gradlew :intent-generation:test`
 - 실행 테스트: `./gradlew build`
 
+#### TODO
+
+- DB 영속화 단계에서 `idempotency_key` unique constraint 추가
+- normalized request payload 기반 `request_hash` 컬럼 추가 검토
+- 같은 `idempotencyKey` 재요청 시 DB transaction 안에서 기존 row를 조회하도록 변경
+- unique constraint 충돌 발생 시 기존 row의 `request_hash`와 새 요청 hash 비교
+  - hash가 같으면 기존 `OrderIntent` 반환
+  - hash가 다르면 `409 Conflict` 반환
+- DB 기반 idempotency가 들어오면 `OrderIntentCreator.create()`의 JVM-local `synchronized` 의존 제거 검토
+
 ### 2026.06.03 slice
 
 수동/리밸런싱/전략 주문 의도 생성 API를 항상 참고할 수 있도록 별도 사용 가이드로 정리.
