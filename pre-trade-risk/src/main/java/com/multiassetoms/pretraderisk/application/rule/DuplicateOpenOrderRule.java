@@ -26,7 +26,7 @@ public class DuplicateOpenOrderRule extends AbstractPreTradeRiskRule {
             return failed(
                     PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER,
                     "duplicate open order exists",
-                    valueOf(openOrderContext.duplicateOpenOrderExists()),
+                    evaluatedValue(openOrderContext),
                     "false"
             );
         }
@@ -36,5 +36,12 @@ public class DuplicateOpenOrderRule extends AbstractPreTradeRiskRule {
                 valueOf(openOrderContext.duplicateOpenOrderExists()),
                 "false"
         );
+    }
+
+    private String evaluatedValue(PreTradeRiskOpenOrderContext openOrderContext) {
+        if (openOrderContext.duplicateOpenOrderId() != null) {
+            return openOrderContext.duplicateOpenOrderId().toString();
+        }
+        return valueOf(openOrderContext.duplicateOpenOrderExists());
     }
 }

@@ -311,6 +311,35 @@ class PreTradeRiskCheckServiceTest {
     }
 
     @Test
+    void includesDuplicateOpenOrderIdWhenDuplicateOpenOrderExists() {
+        UUID duplicateOpenOrderId = UUID.fromString("00000000-0000-0000-0000-000000000210");
+
+        PreTradeRiskCheckResult result = service.evaluateWithContext(
+                new PreTradeRiskCheckCommand(
+                        UUID.fromString("00000000-0000-0000-0000-000000000211"),
+                        "portfolio-1",
+                        "005930",
+                        OrderSide.BUY,
+                        OrderType.LIMIT,
+                        new BigDecimal("10"),
+                        new BigDecimal("55000")
+                ),
+                new PreTradeRiskCheckContext(
+                        PreTradeRiskLimitContext.empty(),
+                        PreTradeRiskExposureContext.empty(),
+                        new PreTradeRiskOpenOrderContext(true, duplicateOpenOrderId)
+                )
+        );
+
+        PreTradeRiskRuleCheckResult duplicateRuleResult =
+                ruleResultsByCode(result).get(PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER);
+
+        assertEquals(PreTradeRiskDecision.REJECTED, result.decision());
+        assertEquals(PreTradeRiskRuleStatus.FAILED, duplicateRuleResult.status());
+        assertEquals(duplicateOpenOrderId.toString(), duplicateRuleResult.evaluatedValue());
+    }
+
+    @Test
     void passesWhenLimitPriceIsWithinPriceBand() {
         PreTradeRiskCheckResult result = service.evaluateWithContext(
                 new PreTradeRiskCheckCommand(
