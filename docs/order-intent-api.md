@@ -10,6 +10,7 @@
 1. 수동 주문 의도 생성
 2. 리밸런싱 주문 의도 생성
 3. 전략 신호 주문 의도 생성
+4. 주문 의도 단건 조회
 ```
 
 ## 공통 흐름
@@ -213,6 +214,45 @@ Content-Type: application/json
 }
 ```
 
+## 4. 주문 의도 조회
+
+생성된 `OrderIntent`를 `intentId` 또는 `idempotencyKey`로 조회한다.
+
+### intentId로 조회
+
+```http
+GET /api/order-intents/{intentId}
+```
+
+```json
+{
+  "intentId": "00000000-0000-0000-0000-000000000001",
+  "portfolioId": "portfolio-1",
+  "instrumentId": "005930",
+  "sourceType": "MANUAL",
+  "sourceRefId": null,
+  "side": "BUY",
+  "orderType": "LIMIT",
+  "requestedQty": 10,
+  "limitPrice": 55000,
+  "timeInForce": "DAY",
+  "reason": "operator order",
+  "status": "CREATED",
+  "idempotencyKey": "manual-key-1",
+  "createdBy": "operator",
+  "createdAt": "2026-06-04T00:00:00Z",
+  "updatedAt": "2026-06-04T00:00:00Z"
+}
+```
+
+### idempotencyKey로 조회
+
+```http
+GET /api/order-intents?idempotencyKey=manual-key-1
+```
+
+`idempotencyKey` 재시도 정책을 확인하거나, 클라이언트가 최초 생성 응답을 잃어버렸을 때 기존 `OrderIntent`를 다시 찾는 데 사용한다.
+
 ## Field Reference
 
 ### Request fields
@@ -329,6 +369,7 @@ payload는 같지만 key가 다른 중복 주문 의심 케이스는 idempotency
 | `MARKET`인데 `limitPrice`가 있음 | `limitPrice must be null for MARKET orders` |
 | `requestedQty <= 0` | `requestedQty must be greater than zero` |
 | 같은 `idempotencyKey`로 다른 요청 내용이 들어옴 | `idempotencyKey already exists for a different order intent request` |
+| 존재하지 않는 `intentId` 또는 `idempotencyKey` 조회 | `order intent not found` |
 
 같은 `idempotencyKey`와 같은 요청 내용이 재전송되면 오류가 아니라 최초 생성된 `OrderIntent`를 다시 반환한다.
 이는 네트워크 재시도나 클라이언트 중복 전송을 안전하게 처리하기 위한 정책이다.
