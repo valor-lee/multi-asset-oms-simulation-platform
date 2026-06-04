@@ -248,6 +248,36 @@
 
 ## pre-trade-risk
 
+### 2026.06.05 slice
+
+생성된 `OrderIntent`를 HTTP API로 pre-trade risk 평가하고, 평가 결과에 따라 intent 상태를 전이할 수 있도록 진입점을 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `pre-trade-risk` 모듈에 Spring Web/test web 의존성 추가
+- `PreTradeRiskEvaluationRequest` 추가
+  - limit, exposure, open order, market, control context를 API request에서 받을 수 있도록 구성
+- `POST /api/pre-trade-risk/order-intents/{intentId}/evaluations` 엔드포인트 추가
+  - `OrderIntentQueryService`로 평가 대상 intent 조회
+  - `PreTradeRiskOrderIntentService`로 risk 평가 및 `RISK_APPROVED` / `RISK_REJECTED` 상태 전이 저장
+- `PreTradeRiskExceptionHandler` 추가
+  - 없는 intent는 `404 Not Found`
+  - `CREATED` 상태가 아닌 intent 평가 시도는 `409 Conflict`
+- request context 변환 테스트와 MVC controller 테스트 추가
+- `docs/pre-trade-risk-api.md` 추가
+- `README.md`, `pre-trade-risk/README.md`에 API 문서 링크 추가
+
+#### 메모
+
+- 이 API는 MVP 파이프라인에서 `OrderIntent 생성 -> 조회 -> risk 평가` 흐름을 HTTP 레벨에서 연결하는 단계다.
+- 실제 limit/exposure/open order/market/control 조회는 아직 API 내부에서 수행하지 않고, 호출자가 request body로 전달한 context를 평가한다.
+- 이후 작업에서는 운영 화면이나 orchestration layer가 필요한 context를 조회해 이 API를 호출하거나, risk 모듈 내부에 context query adapter를 붙이는 방향을 검토할 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :pre-trade-risk:test`
+- 실행 테스트: `./gradlew build`
+
 ### 2026.06.03 slice
 
 `idempotencyKey`가 다른 동일 payload 주문 의심 케이스를 pre-trade risk의 duplicate open order 규칙에서 추적하기 쉽게 보강.

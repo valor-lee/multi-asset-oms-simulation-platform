@@ -2,6 +2,8 @@
 
 `OrderIntent`를 거래소 주문으로 보내기 전에 수량, 금액, 포지션 등 사전 리스크 규칙을 평가하는 모듈.
 
+API 사용법은 [Pre-Trade Risk API Guide](../docs/pre-trade-risk-api.md)에 기록한다.
+
 ## Duplicate open order
 
 `idempotencyKey`는 같은 생성 요청의 재시도를 막는 장치이고, 같은 payload에 다른 key가 붙어 들어온 주문은 별도 요청으로 처리된다.
