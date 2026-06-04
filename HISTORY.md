@@ -51,6 +51,33 @@
 
 ## intent-generation
 
+### 2026.06.04 slice
+
+생성된 `OrderIntent`를 API로 다시 조회할 수 있도록 query endpoint를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `OrderIntentQueryService` 추가
+  - `intentId`로 주문 의도 조회
+  - `idempotencyKey`로 주문 의도 조회
+  - 조회 결과가 없으면 `OrderIntentNotFoundException` 발생
+- `GET /api/order-intents/{intentId}` 엔드포인트 추가
+- `GET /api/order-intents?idempotencyKey=...` 엔드포인트 추가
+- `OrderIntentExceptionHandler`에서 조회 실패를 `404 Not Found`로 응답하도록 변경
+- query service 테스트와 MVC controller 테스트 추가
+- `docs/order-intent-api.md`에 조회 API 사용법 추가
+
+#### 메모
+
+- 주문 의도 생성 API가 생겼지만 조회 API가 없으면 이후 risk 평가, order conversion, 운영 확인 흐름에서 생성된 intent를 다시 확인하기 어렵다.
+- `idempotencyKey` 조회는 클라이언트가 생성 응답을 잃어버렸거나 재시도 결과를 확인해야 할 때 유용하다.
+- 이번 조회 API는 MVP 파이프라인의 다음 단계인 pre-trade risk 평가와 order conversion API를 붙이기 위한 기반이다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :intent-generation:test`
+- 실행 테스트: `./gradlew build`
+
 ### 2026.06.03 slice
 
 주문 의도 생성 API에서 `idempotencyKey` 재전송과 key 재사용 충돌을 구분하도록 보강.
