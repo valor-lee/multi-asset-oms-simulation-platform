@@ -5,6 +5,7 @@ import com.multiassetoms.execution.model.OrderConversionException;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.intentgeneration.infrastructure.InMemoryOrderIntentRepository;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
+import com.multiassetoms.intentgeneration.model.OrderIntentNotFoundException;
 import com.multiassetoms.intentgeneration.model.OrderIntentSourceType;
 import com.multiassetoms.intentgeneration.model.OrderIntentStatus;
 import com.multiassetoms.intentgeneration.model.OrderSide;
@@ -139,8 +140,8 @@ class OrderConversionServiceTest {
 
     @Test
     void rejectsMissingIntentId() {
-        OrderConversionException exception = assertThrows(
-                OrderConversionException.class,
+        OrderIntentNotFoundException exception = assertThrows(
+                OrderIntentNotFoundException.class,
                 () -> service.convert(UUID.fromString("00000000-0000-0000-0000-000000000599"))
         );
 

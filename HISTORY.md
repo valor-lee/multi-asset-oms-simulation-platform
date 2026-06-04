@@ -2,6 +2,39 @@
 
 프로젝트 slice 작업 이력을 한곳에 모아 기록한다.
 
+## execution
+
+### 2026.06.05 slice
+
+사전 리스크를 통과한 `OrderIntent`를 HTTP API로 실제 `Order`로 변환할 수 있도록 execution 진입점을 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/order-intents/{intentId}/orders` 추가
+  - `RISK_APPROVED` intent를 `Order(CREATED)`로 변환
+  - 변환 완료 후 intent는 `CONVERTED_TO_ORDER` 상태로 저장
+  - 같은 intent 재요청 시 기존 order를 반환
+- `ExecutionExceptionHandler` 추가
+  - 존재하지 않는 intent는 `404 Not Found`
+  - 변환 가능한 상태가 아닌 intent는 `409 Conflict`
+- `OrderConversionService`의 intent 미존재 예외를 `OrderIntentNotFoundException`으로 정리
+- execution controller 테스트 추가
+- `docs/execution-api.md` 추가
+- `README.md`에 execution API 문서 링크 추가
+
+#### 메모
+
+- 이번 API는 MVP 주문 파이프라인에서 `OrderIntent 생성 -> risk 평가 -> order 변환`까지 HTTP 레벨로 연결하는 단계다.
+- `OrderIntent`는 아직 주문 후보에 가깝고, `Order`는 execution/OMS 상태 머신이 관리할 실제 주문 객체다.
+- `POST /api/order-intents/{intentId}/orders`는 같은 intent 아래에 order 리소스를 만드는 의미라서 기존 `order-intents/{intentId}/evaluations` 흐름과 이어진다.
+- 서비스는 `intentId` 기준으로 이미 생성된 order를 먼저 조회하므로, 클라이언트 재시도 때문에 같은 intent에서 order가 여러 개 생기는 것을 막는다.
+- 아직 broker/exchange 전송 API는 열지 않았다. 다음 slice에서는 `Order(CREATED)`를 `SENT`로 넘기는 submission API를 노출하는 작업이 자연스럽다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+- 전체 빌드: `./gradlew build`
+
 ## cross-cutting
 
 ### 2026.06.02 slice
