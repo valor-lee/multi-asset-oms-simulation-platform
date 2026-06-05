@@ -6,6 +6,39 @@
 
 ### 2026.06.05 slice
 
+broker/exchange 체결 이벤트를 HTTP API로 반영해 order 체결 수량과 상태를 갱신할 수 있도록 execution API를 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/orders/{orderId}/fills` 추가
+  - `ACKED` order의 첫 체결을 반영해 `PARTIALLY_FILLED` 또는 `FILLED` 상태로 전이
+  - `PARTIALLY_FILLED` order의 추가 체결을 누적
+  - `CANCEL_REQUESTED` order에도 cancel-fill race condition으로 들어온 체결 반영 허용
+- `OrderFillRequest` 추가
+  - `fillExecutionId`, `fillQuantity`, `fillPrice`, `feeAmount`, `taxAmount`를 API 입력으로 받음
+  - 요청 필드 누락/잘못된 숫자 값은 `400 Bad Request`
+- `OrderFillService`의 order 미존재 예외를 `OrderNotFoundException`으로 정리
+- `ExecutionExceptionHandler`에 fill 예외 매핑 추가
+- fill controller 테스트 추가
+- `docs/execution-api.md`에 fill API 사용법 추가
+- `docs/restful-api-strategy.md`의 현재 API 목록 갱신
+
+#### 메모
+
+- 이번 API는 `OrderIntent 생성 -> risk 평가 -> order 변환 -> order 제출 -> ACK -> fill`까지 MVP 주문 흐름을 HTTP 레벨로 연결하는 단계다.
+- `fillExecutionId`는 broker/exchange 체결 이벤트의 idempotency key 역할을 한다.
+- 같은 `fillExecutionId`가 재전송되면 체결 수량을 다시 더하지 않고 현재 order를 반환한다.
+- 체결 수량 누적 결과가 원 주문 수량과 같으면 `FILLED`, 작으면 `PARTIALLY_FILLED`다.
+- `CANCEL_REQUESTED` 상태에서 fill을 허용하는 이유는 실제 시장에서 취소 요청과 체결 이벤트가 교차 도착할 수 있기 때문이다.
+- overfill은 주문 상태와 요청 문법은 맞지만 현재 order 수량과 충돌하는 상황이므로 `409 Conflict`로 본다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+- 전체 빌드: `./gradlew build`
+
+### 2026.06.05 slice
+
 `SENT` order에 대한 broker/exchange ACK 또는 reject 이벤트를 HTTP API로 반영할 수 있도록 execution API를 확장.
 
 #### 이번 슬라이스에서 한 일

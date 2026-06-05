@@ -3,6 +3,7 @@ package com.multiassetoms.execution.application;
 import com.multiassetoms.execution.model.ExecutionRequestException;
 import com.multiassetoms.execution.model.OrderAcknowledgementException;
 import com.multiassetoms.execution.model.OrderConversionException;
+import com.multiassetoms.execution.model.OrderFillException;
 import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderSubmissionException;
 import com.multiassetoms.intentgeneration.model.OrderIntentNotFoundException;
@@ -47,6 +48,12 @@ public class ExecutionExceptionHandler {
     @ExceptionHandler(OrderAcknowledgementException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleOrderAcknowledgementException(OrderAcknowledgementException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(OrderFillException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleOrderFillException(OrderFillException exception) {
         return new ErrorResponse(exception.getMessage());
     }
 

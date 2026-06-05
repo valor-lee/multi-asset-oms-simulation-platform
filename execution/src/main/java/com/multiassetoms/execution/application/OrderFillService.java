@@ -5,6 +5,7 @@ import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderFillExecution;
 import com.multiassetoms.execution.model.OrderFillException;
+import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderStatus;
 import org.springframework.stereotype.Service;
 
@@ -148,7 +149,7 @@ public class OrderFillService {
         }
 
         Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderFillException("order not found"));
+                .orElseThrow(() -> new OrderNotFoundException("order not found"));
 
         validateFillable(order);
         validateFillQuantity(fillQuantity);
@@ -203,7 +204,7 @@ public class OrderFillService {
             throw new OrderFillException("fillExecutionId belongs to another order");
         }
         return orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderFillException("order not found"));
+                .orElseThrow(() -> new OrderNotFoundException("order not found"));
     }
 
     private void validateFillable(Order order) {

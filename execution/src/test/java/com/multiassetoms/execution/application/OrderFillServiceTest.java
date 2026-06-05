@@ -4,6 +4,7 @@ import com.multiassetoms.execution.infrastructure.InMemoryOrderRepository;
 import com.multiassetoms.execution.infrastructure.InMemoryOrderFillExecutionRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderFillException;
+import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.intentgeneration.model.OrderType;
@@ -332,8 +333,8 @@ class OrderFillServiceTest {
 
     @Test
     void rejectsMissingOrderId() {
-        OrderFillException exception = assertThrows(
-                OrderFillException.class,
+        OrderNotFoundException exception = assertThrows(
+                OrderNotFoundException.class,
                 () -> service.fill(
                         UUID.fromString("00000000-0000-0000-0000-000000001099"),
                         new BigDecimal("1")
