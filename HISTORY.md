@@ -6,6 +6,35 @@
 
 ### 2026.06.05 slice
 
+생성된 `Order(CREATED)`를 HTTP API로 제출 처리해 `SENT` 상태로 전이할 수 있도록 execution API를 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/orders/{orderId}/submissions` 추가
+  - `CREATED` order를 `SENT` 상태로 전이
+  - 이미 `SENT`인 order는 중복 제출 요청으로 보고 기존 order 반환
+- `OrderNotFoundException` 추가
+  - 존재하지 않는 order는 `404 Not Found`
+  - 제출 가능한 상태가 아닌 order는 `409 Conflict`
+- `ExecutionExceptionHandler`에 submission/not found 예외 매핑 추가
+- submission controller 테스트 추가
+- `docs/execution-api.md`에 order 제출 API 사용법 추가
+- `docs/restful-api-strategy.md`의 현재 API 목록 갱신
+
+#### 메모
+
+- 이번 API는 `OrderIntent 생성 -> risk 평가 -> order 변환 -> order 제출`까지 MVP 주문 흐름을 HTTP 레벨로 연결하는 단계다.
+- `SENT`는 broker/exchange에 전송 요청을 보낸 내부 상태이고, broker/exchange가 실제로 접수했다는 의미는 아니다.
+- 실제 접수 확인은 다음 단계에서 ACK API 또는 내부 이벤트 처리로 `ACKED` 상태를 만들 때 표현한다.
+- `POST /api/orders/{orderId}/submissions`는 상태를 직접 `PATCH`로 바꾸는 대신, "제출 시도"라는 도메인 동작을 별도 하위 리소스로 남기는 형태다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+- 전체 빌드: `./gradlew build`
+
+### 2026.06.05 slice
+
 사전 리스크를 통과한 `OrderIntent`를 HTTP API로 실제 `Order`로 변환할 수 있도록 execution 진입점을 추가.
 
 #### 이번 슬라이스에서 한 일

@@ -1,6 +1,8 @@
 package com.multiassetoms.execution.application;
 
 import com.multiassetoms.execution.model.OrderConversionException;
+import com.multiassetoms.execution.model.OrderNotFoundException;
+import com.multiassetoms.execution.model.OrderSubmissionException;
 import com.multiassetoms.intentgeneration.model.OrderIntentNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -16,9 +18,21 @@ public class ExecutionExceptionHandler {
         return new ErrorResponse(exception.getMessage());
     }
 
+    @ExceptionHandler(OrderNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleOrderNotFoundException(OrderNotFoundException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
     @ExceptionHandler(OrderConversionException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleOrderConversionException(OrderConversionException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(OrderSubmissionException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleOrderSubmissionException(OrderSubmissionException exception) {
         return new ErrorResponse(exception.getMessage());
     }
 

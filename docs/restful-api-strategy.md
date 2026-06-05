@@ -376,6 +376,7 @@ API 문서에는 최소한 다음을 포함한다.
 | `intent-generation` | `GET /api/order-intents?idempotencyKey=...` | idempotency key 기준 주문 의도 조회 |
 | `pre-trade-risk` | `POST /api/pre-trade-risk/order-intents/{intentId}/evaluations` | 주문 의도 사전 리스크 평가 |
 | `execution` | `POST /api/order-intents/{intentId}/orders` | risk 승인 주문 의도를 order로 변환 |
+| `execution` | `POST /api/orders/{orderId}/submissions` | 생성된 order 제출 처리 |
 | `audit-replay` | `GET /api/audit-replay/order-replay/consistency-report` | 전체 replay consistency report 조회 |
 | `audit-replay` | `GET /api/audit-replay/order-replay/consistency/{orderId}` | 단건 consistency 조회 |
 | `audit-replay` | `GET /api/audit-replay/order-replay/stored-orders/{orderId}` | 저장된 order 기준 execution replay 조회 |
