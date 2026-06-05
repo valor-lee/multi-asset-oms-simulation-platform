@@ -6,6 +6,7 @@ import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderAcknowledgementException;
 import com.multiassetoms.execution.model.OrderExecutionEvent;
 import com.multiassetoms.execution.model.OrderExecutionEventType;
+import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderStatus;
 import org.springframework.stereotype.Service;
 
@@ -126,7 +127,7 @@ public class OrderAcknowledgementService {
 
     private Order findOrder(UUID orderId) {
         return orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderAcknowledgementException("order not found"));
+                .orElseThrow(() -> new OrderNotFoundException("order not found"));
     }
 
     private void validateSent(Order order) {

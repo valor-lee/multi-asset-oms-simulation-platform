@@ -6,6 +6,41 @@
 
 ### 2026.06.05 slice
 
+`SENT` order에 대한 broker/exchange ACK 또는 reject 이벤트를 HTTP API로 반영할 수 있도록 execution API를 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/orders/{orderId}/acknowledgements` 추가
+  - `SENT` order를 `ACKED` 상태로 전이
+  - 같은 ACK `eventId` 재요청은 중복 이벤트로 보고 현재 order 반환
+- `POST /api/orders/{orderId}/rejections` 추가
+  - `SENT` order를 `REJECTED` 상태로 전이
+  - 같은 reject `eventId` 재요청은 중복 이벤트로 보고 현재 order 반환
+- `OrderExecutionEventRequest` 추가
+  - broker/exchange 이벤트 id를 API 입력으로 받음
+- `ExecutionRequestException` 추가
+  - `eventId` 누락은 `400 Bad Request`
+- `OrderAcknowledgementService`의 order 미존재 예외를 `OrderNotFoundException`으로 정리
+- `ExecutionExceptionHandler`에 ACK/REJECT 관련 예외 매핑 추가
+- ACK/REJECT controller 테스트 추가
+- `docs/execution-api.md`에 ACK/REJECT API 사용법 추가
+- `docs/restful-api-strategy.md`의 현재 API 목록 갱신
+
+#### 메모
+
+- 이번 API는 `OrderIntent 생성 -> risk 평가 -> order 변환 -> order 제출 -> broker 응답 반영`까지 MVP 주문 흐름을 HTTP 레벨로 연결하는 단계다.
+- `SENT`는 전송 요청 상태이고, `ACKED`는 broker/exchange가 주문을 실제로 접수했다는 상태다.
+- `REJECTED`는 broker/exchange가 주문을 거절한 최종 상태에 가깝다.
+- `eventId`를 API 입력으로 받는 이유는 외부 이벤트 재전송, webhook 중복 수신, 메시지 재처리 상황에서 같은 이벤트를 한 번만 반영하기 위해서다.
+- ACK와 REJECT는 같은 `SENT` 주문에서 서로 배타적인 응답이므로, 같은 `eventId`가 다른 이벤트 타입으로 재사용되면 충돌로 본다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+- 전체 빌드: `./gradlew build`
+
+### 2026.06.05 slice
+
 생성된 `Order(CREATED)`를 HTTP API로 제출 처리해 `SENT` 상태로 전이할 수 있도록 execution API를 확장.
 
 #### 이번 슬라이스에서 한 일
