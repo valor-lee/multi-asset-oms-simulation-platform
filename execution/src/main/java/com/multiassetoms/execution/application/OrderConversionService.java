@@ -6,6 +6,7 @@ import com.multiassetoms.execution.model.OrderConversionException;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.intentgeneration.application.OrderIntentRepository;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
+import com.multiassetoms.intentgeneration.model.OrderIntentNotFoundException;
 import com.multiassetoms.intentgeneration.model.OrderIntentStatus;
 import org.springframework.stereotype.Service;
 
@@ -43,7 +44,7 @@ public class OrderConversionService {
      */
     public OrderConversionResult convert(UUID intentId) {
         OrderIntent intent = orderIntentRepository.findByIntentId(intentId)
-                .orElseThrow(() -> new OrderConversionException("order intent not found"));
+                .orElseThrow(() -> new OrderIntentNotFoundException("order intent not found"));
         return convert(intent);
     }
 
@@ -64,7 +65,7 @@ public class OrderConversionService {
      */
     private OrderConversionResult existingConversionResult(Order order, OrderIntent intent) {
         OrderIntent latestIntent = orderIntentRepository.findByIntentId(intent.intentId())
-                .orElseThrow(() -> new OrderConversionException("order intent not found"));
+                .orElseThrow(() -> new OrderIntentNotFoundException("order intent not found"));
         validateRiskApprovedOrConverted(latestIntent);
 
         if (latestIntent.status() == OrderIntentStatus.CONVERTED_TO_ORDER) {

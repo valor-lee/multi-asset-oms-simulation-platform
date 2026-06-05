@@ -11,4 +11,7 @@ dependencies {
     api(project(":market-data"))
     // Spring Bean 구성과 이벤트/서비스 wiring 을 위해 spring-context 를 사용
     api("org.springframework:spring-context")
+    implementation("org.springframework:spring-web")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-web")
 }

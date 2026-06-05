@@ -372,6 +372,10 @@ API 문서에는 최소한 다음을 포함한다.
 | `intent-generation` | `POST /api/order-intents/manual` | 수동 주문 의도 생성 |
 | `intent-generation` | `POST /api/order-intents/rebalancing` | 리밸런싱 주문 의도 생성 |
 | `intent-generation` | `POST /api/order-intents/strategy` | 전략 신호 주문 의도 생성 |
+| `intent-generation` | `GET /api/order-intents/{intentId}` | 주문 의도 단건 조회 |
+| `intent-generation` | `GET /api/order-intents?idempotencyKey=...` | idempotency key 기준 주문 의도 조회 |
+| `pre-trade-risk` | `POST /api/pre-trade-risk/order-intents/{intentId}/evaluations` | 주문 의도 사전 리스크 평가 |
+| `execution` | `POST /api/order-intents/{intentId}/orders` | risk 승인 주문 의도를 order로 변환 |
 | `audit-replay` | `GET /api/audit-replay/order-replay/consistency-report` | 전체 replay consistency report 조회 |
 | `audit-replay` | `GET /api/audit-replay/order-replay/consistency/{orderId}` | 단건 consistency 조회 |
 | `audit-replay` | `GET /api/audit-replay/order-replay/stored-orders/{orderId}` | 저장된 order 기준 execution replay 조회 |
