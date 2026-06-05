@@ -12,6 +12,8 @@ OrderIntent(CREATED)
     -> Order(CREATED), OrderIntent(CONVERTED_TO_ORDER)
     -> order 제출
     -> Order(SENT)
+    -> broker/exchange ACK 또는 REJECT 반영
+    -> Order(ACKED or REJECTED)
 ```
 
 ## 1. Order Intent를 Order로 변환
@@ -151,5 +153,112 @@ request body는 없다. 제출 대상은 path variable의 `orderId`로 식별한
 ```json
 {
   "message": "only CREATED orders can be submitted"
+}
+```
+
+## 3. Broker ACK 반영
+
+```http
+POST /api/orders/{orderId}/acknowledgements
+Content-Type: application/json
+```
+
+### Request
+
+```json
+{
+  "eventId": "00000000-0000-0000-0000-000000036001"
+}
+```
+
+`eventId`는 broker/exchange에서 전달받은 이벤트를 식별하는 값이다. 같은 `eventId`가 다시 들어오면 중복 이벤트로 보고 이미 반영된 결과를 반환한다.
+
+### Response
+
+```json
+{
+  "orderId": "00000000-0000-0000-0000-000000035001",
+  "intentId": "00000000-0000-0000-0000-000000037001",
+  "portfolioId": "portfolio-1",
+  "instrumentId": "005930",
+  "side": "BUY",
+  "orderType": "LIMIT",
+  "quantity": 10,
+  "filledQuantity": 0,
+  "limitPrice": 55000,
+  "timeInForce": "DAY",
+  "status": "ACKED",
+  "createdAt": "2026-06-04T00:00:00Z",
+  "updatedAt": "2026-06-05T00:00:00Z"
+}
+```
+
+## 4. Broker Reject 반영
+
+```http
+POST /api/orders/{orderId}/rejections
+Content-Type: application/json
+```
+
+### Request
+
+```json
+{
+  "eventId": "00000000-0000-0000-0000-000000036002"
+}
+```
+
+### Response
+
+```json
+{
+  "orderId": "00000000-0000-0000-0000-000000035002",
+  "intentId": "00000000-0000-0000-0000-000000037001",
+  "portfolioId": "portfolio-1",
+  "instrumentId": "005930",
+  "side": "BUY",
+  "orderType": "LIMIT",
+  "quantity": 10,
+  "filledQuantity": 0,
+  "limitPrice": 55000,
+  "timeInForce": "DAY",
+  "status": "REJECTED",
+  "createdAt": "2026-06-04T00:00:00Z",
+  "updatedAt": "2026-06-05T00:00:00Z"
+}
+```
+
+## ACK/REJECT 상태 규칙
+
+| Order status | ACK 처리 | REJECT 처리 |
+| --- | --- | --- |
+| `SENT` | `ACKED`로 전이 | `REJECTED`로 전이 |
+| `ACKED` | 중복 ACK로 보고 기존 order 반환 | `409 Conflict` |
+| `REJECTED` | `409 Conflict` | 중복 REJECT로 보고 기존 order 반환 |
+| 그 외 상태 | `409 Conflict` | `409 Conflict` |
+
+ACK와 REJECT는 broker/exchange가 `SENT` 주문에 대해 응답한 결과다. `ACKED`는 주문이 시장에 접수된 상태이고, `REJECTED`는 broker/exchange가 주문을 거절한 상태다.
+
+`eventId`가 없으면 `400 Bad Request`를 반환한다.
+
+```json
+{
+  "message": "eventId is required"
+}
+```
+
+존재하지 않는 order에 이벤트를 반영하면 `404 Not Found`를 반환한다.
+
+```json
+{
+  "message": "order not found"
+}
+```
+
+ACK/REJECT 가능한 상태가 아니거나, 같은 `eventId`가 다른 order 또는 다른 이벤트 타입에 이미 쓰였으면 `409 Conflict`를 반환한다.
+
+```json
+{
+  "message": "only SENT orders can be acknowledged or rejected"
 }
 ```

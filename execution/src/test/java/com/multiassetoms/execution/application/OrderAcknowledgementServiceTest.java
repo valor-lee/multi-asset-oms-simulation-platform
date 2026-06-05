@@ -4,6 +4,7 @@ import com.multiassetoms.execution.infrastructure.InMemoryOrderRepository;
 import com.multiassetoms.execution.infrastructure.InMemoryOrderExecutionEventRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderAcknowledgementException;
+import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.intentgeneration.model.OrderType;
@@ -186,8 +187,8 @@ class OrderAcknowledgementServiceTest {
 
     @Test
     void rejectsMissingOrderId() {
-        OrderAcknowledgementException exception = assertThrows(
-                OrderAcknowledgementException.class,
+        OrderNotFoundException exception = assertThrows(
+                OrderNotFoundException.class,
                 () -> service.acknowledge(UUID.fromString("00000000-0000-0000-0000-000000000899"))
         );
 
