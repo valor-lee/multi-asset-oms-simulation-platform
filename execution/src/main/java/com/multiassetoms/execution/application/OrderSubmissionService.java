@@ -2,6 +2,7 @@ package com.multiassetoms.execution.application;
 
 import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
+import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.execution.model.OrderSubmissionException;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,7 @@ public class OrderSubmissionService {
      */
     public Order submit(UUID orderId) {
         Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderSubmissionException("order not found"));
+                .orElseThrow(() -> new OrderNotFoundException("order not found"));
         return submit(order);
     }
 

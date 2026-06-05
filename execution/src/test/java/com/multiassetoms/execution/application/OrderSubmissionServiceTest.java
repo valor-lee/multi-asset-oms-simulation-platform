@@ -2,6 +2,7 @@ package com.multiassetoms.execution.application;
 
 import com.multiassetoms.execution.infrastructure.InMemoryOrderRepository;
 import com.multiassetoms.execution.model.Order;
+import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.execution.model.OrderSubmissionException;
 import com.multiassetoms.intentgeneration.model.OrderSide;
@@ -57,8 +58,8 @@ class OrderSubmissionServiceTest {
 
     @Test
     void rejectsMissingOrderId() {
-        OrderSubmissionException exception = assertThrows(
-                OrderSubmissionException.class,
+        OrderNotFoundException exception = assertThrows(
+                OrderNotFoundException.class,
                 () -> service.submit(UUID.fromString("00000000-0000-0000-0000-000000000699"))
         );
 
