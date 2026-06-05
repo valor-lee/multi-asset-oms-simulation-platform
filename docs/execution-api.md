@@ -16,6 +16,8 @@ OrderIntent(CREATED)
     -> Order(ACKED or REJECTED)
     -> broker/exchange fill 반영
     -> Order(PARTIALLY_FILLED or FILLED)
+    -> cancel request 또는 cancel confirmation 반영
+    -> Order(CANCEL_REQUESTED or CANCELED)
 ```
 
 ## 1. Order Intent를 Order로 변환
@@ -368,5 +370,106 @@ Content-Type: application/json
 ```json
 {
   "message": "only ACKED, PARTIALLY_FILLED, or CANCEL_REQUESTED orders can be filled"
+}
+```
+
+## 6. Order 취소 요청
+
+```http
+POST /api/orders/{orderId}/cancel-requests
+```
+
+### Request
+
+request body는 없다. 취소 요청 대상은 path variable의 `orderId`로 식별한다.
+
+### Response
+
+```json
+{
+  "orderId": "00000000-0000-0000-0000-000000041001",
+  "intentId": "00000000-0000-0000-0000-000000043001",
+  "portfolioId": "portfolio-1",
+  "instrumentId": "005930",
+  "side": "BUY",
+  "orderType": "LIMIT",
+  "quantity": 10,
+  "filledQuantity": 0,
+  "limitPrice": 55000,
+  "timeInForce": "DAY",
+  "status": "CANCEL_REQUESTED",
+  "createdAt": "2026-06-05T00:00:00Z",
+  "updatedAt": "2026-06-06T00:00:00Z"
+}
+```
+
+## 7. Broker Cancel Confirmation 반영
+
+```http
+POST /api/orders/{orderId}/cancel-confirmations
+Content-Type: application/json
+```
+
+### Request
+
+```json
+{
+  "eventId": "00000000-0000-0000-0000-000000042002"
+}
+```
+
+### Response
+
+```json
+{
+  "orderId": "00000000-0000-0000-0000-000000041002",
+  "intentId": "00000000-0000-0000-0000-000000043001",
+  "portfolioId": "portfolio-1",
+  "instrumentId": "005930",
+  "side": "BUY",
+  "orderType": "LIMIT",
+  "quantity": 10,
+  "filledQuantity": 4,
+  "limitPrice": 55000,
+  "timeInForce": "DAY",
+  "status": "CANCELED",
+  "createdAt": "2026-06-05T00:00:00Z",
+  "updatedAt": "2026-06-06T00:00:00Z"
+}
+```
+
+## Cancel 상태 규칙
+
+| Order status | Cancel request | Cancel confirmation |
+| --- | --- | --- |
+| `ACKED` | `CANCEL_REQUESTED`로 전이 | `409 Conflict` |
+| `PARTIALLY_FILLED` | `CANCEL_REQUESTED`로 전이 | `409 Conflict` |
+| `CANCEL_REQUESTED` | 중복 요청으로 보고 기존 order 반환 | `CANCELED`로 전이 |
+| `CANCELED` | `409 Conflict` | 중복 confirmation으로 보고 기존 order 반환 |
+| 그 외 상태 | `409 Conflict` | `409 Conflict` |
+
+취소 요청은 아직 broker/exchange가 취소를 완료했다는 뜻이 아니다. 내부적으로 "취소 요청을 보냈다"는 상태를 `CANCEL_REQUESTED`로 기록하고, broker/exchange의 취소 완료 이벤트가 들어오면 `CANCELED`로 전이한다.
+
+cancel confirmation의 `eventId`가 없으면 `400 Bad Request`를 반환한다.
+
+```json
+{
+  "message": "eventId is required"
+}
+```
+
+존재하지 않는 order를 취소하려고 하면 `404 Not Found`를 반환한다.
+
+```json
+{
+  "message": "order not found"
+}
+```
+
+취소 가능한 상태가 아니거나, 같은 `eventId`가 다른 order 또는 다른 이벤트 타입에 이미 쓰였으면 `409 Conflict`를 반환한다.
+
+```json
+{
+  "message": "only ACKED or PARTIALLY_FILLED orders can be canceled"
 }
 ```

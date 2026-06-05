@@ -4,6 +4,38 @@
 
 ## execution
 
+### 2026.06.06 slice
+
+주문 취소 요청과 broker/exchange 취소 완료 이벤트를 HTTP API로 반영할 수 있도록 execution API를 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/orders/{orderId}/cancel-requests` 추가
+  - `ACKED` order를 `CANCEL_REQUESTED` 상태로 전이
+  - `PARTIALLY_FILLED` order의 남은 수량 취소 요청을 `CANCEL_REQUESTED` 상태로 표현
+  - 이미 `CANCEL_REQUESTED`인 order는 중복 요청으로 보고 기존 order 반환
+- `POST /api/orders/{orderId}/cancel-confirmations` 추가
+  - broker/exchange 취소 완료 이벤트를 받아 `CANCEL_REQUESTED` order를 `CANCELED` 상태로 전이
+  - 같은 cancel confirmation `eventId` 재요청은 중복 이벤트로 보고 현재 order 반환
+- `OrderCancellationService`의 order 미존재 예외를 `OrderNotFoundException`으로 정리
+- `ExecutionExceptionHandler`에 cancel 예외 매핑 추가
+- cancellation controller 테스트 추가
+- `docs/execution-api.md`에 cancel request/confirmation API 사용법 추가
+- `docs/restful-api-strategy.md`의 현재 API 목록 갱신
+
+#### 메모
+
+- 이번 API는 MVP 주문 상태 머신에서 취소 경로를 HTTP 레벨로 연결하는 단계다.
+- 취소 요청과 취소 완료는 같은 동작이 아니다. `CANCEL_REQUESTED`는 취소 요청을 보낸 상태이고, `CANCELED`는 broker/exchange가 취소 완료를 확인한 상태다.
+- 부분 체결 주문은 남은 수량만 취소될 수 있으므로 `PARTIALLY_FILLED -> CANCEL_REQUESTED`를 허용한다.
+- cancel confirmation도 외부 이벤트이므로 `eventId`를 받아 중복 반영을 방어한다.
+- `CANCEL_REQUESTED` 상태에서도 fill API가 체결을 허용하므로, 취소 요청과 체결 이벤트가 교차 도착하는 cancel-fill race condition을 표현할 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+- 전체 빌드: `./gradlew build`
+
 ### 2026.06.05 slice
 
 broker/exchange 체결 이벤트를 HTTP API로 반영해 order 체결 수량과 상태를 갱신할 수 있도록 execution API를 확장.

@@ -6,6 +6,7 @@ import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderCancellationException;
 import com.multiassetoms.execution.model.OrderExecutionEvent;
 import com.multiassetoms.execution.model.OrderExecutionEventType;
+import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.intentgeneration.model.OrderType;
@@ -216,8 +217,8 @@ class OrderCancellationServiceTest {
 
     @Test
     void rejectsMissingOrderId() {
-        OrderCancellationException exception = assertThrows(
-                OrderCancellationException.class,
+        OrderNotFoundException exception = assertThrows(
+                OrderNotFoundException.class,
                 () -> service.requestCancel(UUID.fromString("00000000-0000-0000-0000-000000001299"))
         );
 

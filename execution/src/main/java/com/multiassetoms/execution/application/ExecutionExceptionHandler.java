@@ -2,6 +2,7 @@ package com.multiassetoms.execution.application;
 
 import com.multiassetoms.execution.model.ExecutionRequestException;
 import com.multiassetoms.execution.model.OrderAcknowledgementException;
+import com.multiassetoms.execution.model.OrderCancellationException;
 import com.multiassetoms.execution.model.OrderConversionException;
 import com.multiassetoms.execution.model.OrderFillException;
 import com.multiassetoms.execution.model.OrderNotFoundException;
@@ -48,6 +49,12 @@ public class ExecutionExceptionHandler {
     @ExceptionHandler(OrderAcknowledgementException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleOrderAcknowledgementException(OrderAcknowledgementException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(OrderCancellationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleOrderCancellationException(OrderCancellationException exception) {
         return new ErrorResponse(exception.getMessage());
     }
 
