@@ -4,6 +4,7 @@ import com.multiassetoms.execution.application.port.OrderFillExecutionRepository
 import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderFillExecution;
+import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.posttrade.application.port.TradeRepository;
 import com.multiassetoms.posttrade.model.Trade;
@@ -57,7 +58,7 @@ public class TradeCaptureService {
         }
 
         Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new TradeCaptureException("order not found"));
+                .orElseThrow(() -> new OrderNotFoundException("order not found"));
 
         validateCapturable(order);
         return tradeRepository.save(toTrade(order, Instant.now(clock)));
