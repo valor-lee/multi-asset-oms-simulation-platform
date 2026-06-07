@@ -2,6 +2,39 @@
 
 프로젝트 slice 작업 이력을 한곳에 모아 기록한다.
 
+## post-trade
+
+### 2026.06.07 slice
+
+execution에서 체결이 끝난 order를 HTTP API로 post-trade trade로 capture할 수 있도록 진입점을 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/post-trade/orders/{orderId}/trades` 추가
+  - `FILLED` order를 `Trade(CAPTURED)`로 capture
+  - 체결 수량이 있는 `CANCELED` order도 부분 체결 trade로 capture
+  - 이미 capture된 order는 기존 trade 반환
+- `PostTradeExceptionHandler` 추가
+  - 존재하지 않는 order는 `404 Not Found`
+  - capture 가능한 상태가 아닌 order는 `409 Conflict`
+- `TradeCaptureService`의 order 미존재 예외를 `OrderNotFoundException`으로 정리
+- trade capture controller 테스트 추가
+- `docs/post-trade-api.md` 추가
+- `README.md`, `docs/restful-api-strategy.md`에 post-trade API 링크와 endpoint 추가
+
+#### 메모
+
+- 이번 API는 MVP 주문 흐름에서 execution과 post-trade를 HTTP 레벨로 연결하는 단계다.
+- execution의 `Order`는 주문 상태 머신을 관리하고, post-trade의 `Trade`는 실제 체결된 거래 결과를 정산/원장/PnL로 넘기기 위한 객체다.
+- 부분 체결 후 취소된 order도 체결된 수량은 실제 거래 결과이므로 trade capture 대상이다.
+- trade capture는 fill execution들을 요약해 평균 체결가, 총 체결금액, 수수료, 세금을 trade에 반영한다.
+- 다음 slice에서는 `Trade(CAPTURED)`를 settlement 예정 상태로 넘기는 API를 열 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+- 전체 빌드: `./gradlew build`
+
 ## execution
 
 ### 2026.06.06 slice

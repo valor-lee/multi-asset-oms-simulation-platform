@@ -4,6 +4,7 @@ import com.multiassetoms.execution.application.port.OrderFillExecutionRepository
 import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderFillExecution;
+import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.posttrade.application.port.TradeRepository;
 import com.multiassetoms.posttrade.model.Trade;
@@ -57,7 +58,7 @@ public class TradeCaptureService {
         }
 
         Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new TradeCaptureException("order not found"));
+                .orElseThrow(() -> new OrderNotFoundException("order not found"));
 
         validateCapturable(order);
         return tradeRepository.save(toTrade(order, Instant.now(clock)));
@@ -112,7 +113,7 @@ public class TradeCaptureService {
             return FillSummary.empty();
         }
 
-        BigDecimal pricedQuantity = BigDecimal.ZERO;
+        BigDecimal filledQuantity = BigDecimal.ZERO;
         BigDecimal grossNotional = BigDecimal.ZERO;
         BigDecimal feeAmount = BigDecimal.ZERO;
         BigDecimal taxAmount = BigDecimal.ZERO;
@@ -122,7 +123,7 @@ public class TradeCaptureService {
             if (fillExecution.fillPrice() == null) {
                 continue;
             }
-            pricedQuantity = pricedQuantity.add(fillExecution.fillQuantity());
+            filledQuantity = filledQuantity.add(fillExecution.fillQuantity());
             grossNotional = grossNotional.add(
                     fillExecution.fillQuantity().multiply(fillExecution.fillPrice())
             );
@@ -138,12 +139,13 @@ public class TradeCaptureService {
             taxAmount = taxAmount.add(fillExecution.taxAmount());
         }
 
-        if (pricedQuantity.compareTo(order.filledQuantity()) != 0) {
+        // 평균 체결가는 모든 체결 수량에 가격이 있을 때만 계산한다.
+        if (filledQuantity.compareTo(order.filledQuantity()) != 0) {
             return FillSummary.empty();
         }
 
         return new FillSummary(
-                grossNotional.divide(pricedQuantity, 10, RoundingMode.HALF_UP),
+                grossNotional.divide(filledQuantity, 10, RoundingMode.HALF_UP),
                 grossNotional,
                 hasMissingFee ? null : feeAmount,
                 hasMissingTax ? null : taxAmount

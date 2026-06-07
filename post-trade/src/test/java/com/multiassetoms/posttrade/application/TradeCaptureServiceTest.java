@@ -4,6 +4,7 @@ import com.multiassetoms.execution.infrastructure.InMemoryOrderFillExecutionRepo
 import com.multiassetoms.execution.infrastructure.InMemoryOrderRepository;
 import com.multiassetoms.execution.model.Order;
 import com.multiassetoms.execution.model.OrderFillExecution;
+import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.intentgeneration.model.OrderType;
@@ -220,8 +221,8 @@ class TradeCaptureServiceTest {
 
     @Test
     void rejectsMissingOrderId() {
-        TradeCaptureException exception = assertThrows(
-                TradeCaptureException.class,
+        OrderNotFoundException exception = assertThrows(
+                OrderNotFoundException.class,
                 () -> service.capture(UUID.fromString("00000000-0000-0000-0000-000000005099"))
         );
 
