@@ -18,6 +18,8 @@ Trade(CAPTURED)
     -> Settlement(PENDING), Trade(SETTLEMENT_PENDING)
     -> settlement confirmation
     -> Settlement(SETTLED), Trade(SETTLED)
+    -> ledger posting
+    -> PositionLedgerEntry, CashLedgerEntry
 ```
 
 ## 1. Execution Order를 Trade로 Capture
@@ -175,5 +177,65 @@ request body는 없다. 완료 처리할 settlement는 path variable의 `settlem
 ```json
 {
   "message": "only CAPTURED trades can be scheduled for settlement"
+}
+```
+
+## 4. Post-Settlement Ledger Posting
+
+```http
+POST /api/post-trade/trades/{tradeId}/ledger-postings
+```
+
+### Request
+
+request body는 없다. ledger에 반영할 trade는 path variable의 `tradeId`로 식별한다.
+
+### Response
+
+```json
+{
+  "positionLedgerEntry": {
+    "entryId": "00000000-0000-0000-0000-000000050001",
+    "tradeId": "00000000-0000-0000-0000-000000049001",
+    "portfolioId": "portfolio-1",
+    "instrumentId": "005930",
+    "side": "BUY",
+    "quantityDelta": 10,
+    "postedAt": "2026-06-07T00:00:00Z"
+  },
+  "cashLedgerEntry": {
+    "entryId": "00000000-0000-0000-0000-000000051001",
+    "tradeId": "00000000-0000-0000-0000-000000049001",
+    "portfolioId": "portfolio-1",
+    "side": "BUY",
+    "cashDelta": -550100,
+    "postedAt": "2026-06-07T00:00:00Z"
+  }
+}
+```
+
+## Ledger Posting 규칙
+
+| Trade status | 처리 |
+| --- | --- |
+| `SETTLED` | position ledger와 cash ledger에 함께 posting |
+| 이미 posting된 trade | 기존 position/cash ledger entry 반환 |
+| 그 외 상태 | `409 Conflict` |
+
+BUY trade는 position을 증가시키고 cash를 감소시킨다. SELL trade는 position을 감소시키고 cash를 증가시킨다. cash delta에는 `grossNotional`, `feeAmount`, `taxAmount`가 반영된다.
+
+존재하지 않는 trade를 요청하면 `404 Not Found`를 반환한다.
+
+```json
+{
+  "message": "trade not found"
+}
+```
+
+ledger posting 대상이 아니거나 cash 계산에 필요한 총 체결금액이 없으면 `409 Conflict`를 반환한다.
+
+```json
+{
+  "message": "only SETTLED trades can be posted to ledgers"
 }
 ```

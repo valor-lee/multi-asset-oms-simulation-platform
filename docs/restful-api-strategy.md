@@ -385,6 +385,7 @@ API 문서에는 최소한 다음을 포함한다.
 | `post-trade` | `POST /api/post-trade/orders/{orderId}/trades` | execution order를 post-trade trade로 capture |
 | `post-trade` | `POST /api/post-trade/trades/{tradeId}/settlements` | trade settlement 예정 등록 |
 | `post-trade` | `POST /api/post-trade/settlements/{settlementId}/confirmations` | settlement 완료 확인 |
+| `post-trade` | `POST /api/post-trade/trades/{tradeId}/ledger-postings` | settled trade를 position/cash ledger에 posting |
 | `audit-replay` | `GET /api/audit-replay/order-replay/consistency-report` | 전체 replay consistency report 조회 |
 | `audit-replay` | `GET /api/audit-replay/order-replay/consistency/{orderId}` | 단건 consistency 조회 |
 | `audit-replay` | `GET /api/audit-replay/order-replay/stored-orders/{orderId}` | 저장된 order 기준 execution replay 조회 |

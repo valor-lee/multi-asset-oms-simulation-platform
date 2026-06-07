@@ -6,6 +6,36 @@
 
 ### 2026.06.07 slice
 
+정산 완료된 trade를 position ledger와 cash ledger에 함께 posting할 수 있도록 post-trade API를 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/post-trade/trades/{tradeId}/ledger-postings` 추가
+  - `Trade(SETTLED)`를 position ledger와 cash ledger에 함께 posting
+  - 이미 posting된 trade는 각 ledger service의 idempotency에 따라 기존 entry 반환
+  - position/cash ledger entry를 함께 응답
+- `PostSettlementLedgerService`의 trade 미존재 예외를 `TradeNotFoundException`으로 정리
+- `PostTradeExceptionHandler`에 ledger posting 예외 매핑 추가
+  - 존재하지 않는 trade는 `404 Not Found`
+  - posting 가능한 상태가 아니거나 `grossNotional`이 없으면 `409 Conflict`
+- post-settlement ledger controller 테스트 추가
+- `docs/post-trade-api.md`, `docs/restful-api-strategy.md`에 ledger posting API 사용법과 endpoint 추가
+
+#### 메모
+
+- 이번 API는 `Trade(SETTLED)` 이후 실제 보유 수량과 현금 변화를 조회 가능한 원장으로 확정하는 단계다.
+- position ledger는 자산 수량 변화를 기록하고, cash ledger는 현금 증감을 기록한다.
+- BUY trade는 position을 증가시키고 cash를 감소시킨다. SELL trade는 position을 감소시키고 cash를 증가시킨다.
+- cash posting은 총 체결금액이 필요하므로 `grossNotional`이 없는 trade는 거절한다.
+- 실제 DB 적용 시 position/cash 두 ledger posting은 하나의 transaction으로 묶는 것이 안전하다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+- 전체 빌드: `./gradlew build`
+
+### 2026.06.07 slice
+
 캡처된 trade를 settlement 예정 상태로 등록하고 settlement 완료를 HTTP API로 확인할 수 있도록 post-trade API를 확장.
 
 #### 이번 슬라이스에서 한 일

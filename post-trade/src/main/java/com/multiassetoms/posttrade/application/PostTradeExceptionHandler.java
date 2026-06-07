@@ -2,6 +2,7 @@ package com.multiassetoms.posttrade.application;
 
 import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.posttrade.model.PostTradeRequestException;
+import com.multiassetoms.posttrade.model.LedgerPostingException;
 import com.multiassetoms.posttrade.model.SettlementException;
 import com.multiassetoms.posttrade.model.SettlementNotFoundException;
 import com.multiassetoms.posttrade.model.TradeCaptureException;
@@ -47,6 +48,12 @@ public class PostTradeExceptionHandler {
     @ExceptionHandler(SettlementException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleSettlementException(SettlementException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(LedgerPostingException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleLedgerPostingException(LedgerPostingException exception) {
         return new ErrorResponse(exception.getMessage());
     }
 
