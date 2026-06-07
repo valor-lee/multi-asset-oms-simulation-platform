@@ -6,6 +6,38 @@
 
 ### 2026.06.07 slice
 
+정산/원장 반영 이후 realized PnL과 unrealized PnL을 HTTP API로 확인할 수 있도록 post-trade API를 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/post-trade/trades/{tradeId}/realized-pnl-postings` 추가
+  - `Trade(SETTLED, SELL)`의 realized PnL을 entry로 posting
+  - `averageCost` 요청값을 받아 `grossNotional - quantity * averageCost - feeAmount - taxAmount`로 계산
+  - 이미 posting된 trade는 기존 realized PnL entry 반환
+- `GET /api/post-trade/portfolios/{portfolioId}/realized-pnl` 추가
+  - portfolio 기준 현재 누적 realized PnL 응답
+- `GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl` 추가
+  - 현재 position, 평균 원가, 시장가 기준 unrealized PnL snapshot 응답
+- `RealizedPnlPostRequest`, `CurrentRealizedPnlResponse`, `PnlController` 추가
+- `RealizedPnlService`의 trade 미존재 예외를 `TradeNotFoundException`으로 정리
+- `PostTradeExceptionHandler`에 realized/unrealized PnL 예외 매핑 추가
+- PnL controller 테스트 추가
+- `docs/post-trade-api.md`, `docs/restful-api-strategy.md`에 PnL API 사용법과 endpoint 추가
+
+#### 메모
+
+- realized PnL은 실제 매도가 확정된 뒤 생기는 손익이므로 `SELL` trade를 대상으로 entry를 posting한다.
+- unrealized PnL은 아직 보유 중인 position을 현재 시장가로 평가한 손익이다.
+- 시장가는 계속 바뀌므로 unrealized PnL은 저장하지 않고 조회 시점의 snapshot으로 계산한다.
+- realized PnL posting은 상태를 만드는 명령이므로 `POST`, realized/unrealized 조회는 상태를 변경하지 않으므로 `GET`으로 둔다.
+- 현재는 평균 원가를 API 요청에서 받지만, 이후 position lot 또는 average cost ledger가 생기면 서버가 원가를 직접 계산하도록 확장할 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+
+### 2026.06.07 slice
+
 post-settlement ledger posting 이후 portfolio별 현재 position/cash를 조회할 수 있도록 post-trade 조회 API를 추가.
 
 #### 이번 슬라이스에서 한 일
