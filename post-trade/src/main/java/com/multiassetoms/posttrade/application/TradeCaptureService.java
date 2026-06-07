@@ -113,7 +113,7 @@ public class TradeCaptureService {
             return FillSummary.empty();
         }
 
-        BigDecimal pricedFillQuantity = BigDecimal.ZERO;
+        BigDecimal filledQuantity = BigDecimal.ZERO;
         BigDecimal grossNotional = BigDecimal.ZERO;
         BigDecimal feeAmount = BigDecimal.ZERO;
         BigDecimal taxAmount = BigDecimal.ZERO;
@@ -123,7 +123,7 @@ public class TradeCaptureService {
             if (fillExecution.fillPrice() == null) {
                 continue;
             }
-            pricedFillQuantity = pricedFillQuantity.add(fillExecution.fillQuantity());
+            filledQuantity = filledQuantity.add(fillExecution.fillQuantity());
             grossNotional = grossNotional.add(
                     fillExecution.fillQuantity().multiply(fillExecution.fillPrice())
             );
@@ -140,12 +140,12 @@ public class TradeCaptureService {
         }
 
         // 평균 체결가는 모든 체결 수량에 가격이 있을 때만 계산한다.
-        if (pricedFillQuantity.compareTo(order.filledQuantity()) != 0) {
+        if (filledQuantity.compareTo(order.filledQuantity()) != 0) {
             return FillSummary.empty();
         }
 
         return new FillSummary(
-                grossNotional.divide(pricedFillQuantity, 10, RoundingMode.HALF_UP),
+                grossNotional.divide(filledQuantity, 10, RoundingMode.HALF_UP),
                 grossNotional,
                 hasMissingFee ? null : feeAmount,
                 hasMissingTax ? null : taxAmount
