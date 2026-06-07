@@ -4,6 +4,7 @@ import com.multiassetoms.posttrade.application.port.TradeRepository;
 import com.multiassetoms.posttrade.model.LedgerPostingException;
 import com.multiassetoms.posttrade.model.LedgerPostingResult;
 import com.multiassetoms.posttrade.model.Trade;
+import com.multiassetoms.posttrade.model.TradeNotFoundException;
 import com.multiassetoms.posttrade.model.TradeStatus;
 import org.springframework.stereotype.Service;
 
@@ -39,7 +40,7 @@ public class PostSettlementLedgerService {
      */
     public LedgerPostingResult post(UUID tradeId) {
         Trade trade = tradeRepository.findByTradeId(tradeId)
-                .orElseThrow(() -> new LedgerPostingException("trade not found"));
+                .orElseThrow(() -> new TradeNotFoundException("trade not found"));
 
         validatePostable(trade);
         return new LedgerPostingResult(

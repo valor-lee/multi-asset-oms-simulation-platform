@@ -7,6 +7,7 @@ import com.multiassetoms.posttrade.infrastructure.InMemoryTradeRepository;
 import com.multiassetoms.posttrade.model.LedgerPostingException;
 import com.multiassetoms.posttrade.model.LedgerPostingResult;
 import com.multiassetoms.posttrade.model.Trade;
+import com.multiassetoms.posttrade.model.TradeNotFoundException;
 import com.multiassetoms.posttrade.model.TradeStatus;
 import org.junit.jupiter.api.Test;
 
@@ -155,8 +156,8 @@ class PostSettlementLedgerServiceTest {
 
     @Test
     void rejectsMissingTradeId() {
-        LedgerPostingException exception = assertThrows(
-                LedgerPostingException.class,
+        TradeNotFoundException exception = assertThrows(
+                TradeNotFoundException.class,
                 () -> service.post(UUID.fromString("00000000-0000-0000-0000-000000012099"))
         );
 
