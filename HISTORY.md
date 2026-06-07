@@ -6,6 +6,33 @@
 
 ### 2026.06.07 slice
 
+post-settlement ledger posting 이후 portfolio별 현재 position/cash를 조회할 수 있도록 post-trade 조회 API를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}` 추가
+  - portfolio/instrument 기준 현재 position quantity 응답
+- `GET /api/post-trade/portfolios/{portfolioId}/cash` 추가
+  - portfolio 기준 현재 cash balance 응답
+- `CurrentPositionResponse`, `CurrentCashResponse` 추가
+- ledger balance controller 테스트 추가
+- `docs/post-trade-api.md`, `docs/restful-api-strategy.md`에 balance query API 사용법과 endpoint 추가
+
+#### 메모
+
+- 이번 API는 원장 posting 이후 운영자/클라이언트가 실제 보유 수량과 현금 잔액을 확인하는 조회 경계다.
+- position/cash 조회는 상태를 변경하지 않으므로 `GET`으로 둔다.
+- ledger entry가 아직 없으면 repository 누적값이 `0`으로 응답된다.
+- BUY trade는 position을 증가시키고 cash를 감소시키며, SELL trade는 position을 감소시키고 cash를 증가시킨다.
+- 이후 DB 전환 시 portfolio/instrument 기준 단건 조회 인덱스를 붙이면 현재 API 계약을 유지할 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+- 전체 빌드: `./gradlew build`
+
+### 2026.06.07 slice
+
 정산 완료된 trade를 position ledger와 cash ledger에 함께 posting할 수 있도록 post-trade API를 확장.
 
 #### 이번 슬라이스에서 한 일
