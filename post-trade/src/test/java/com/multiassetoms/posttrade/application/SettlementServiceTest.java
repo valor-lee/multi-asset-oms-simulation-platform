@@ -5,8 +5,10 @@ import com.multiassetoms.posttrade.infrastructure.InMemorySettlementRepository;
 import com.multiassetoms.posttrade.infrastructure.InMemoryTradeRepository;
 import com.multiassetoms.posttrade.model.Settlement;
 import com.multiassetoms.posttrade.model.SettlementException;
+import com.multiassetoms.posttrade.model.SettlementNotFoundException;
 import com.multiassetoms.posttrade.model.SettlementStatus;
 import com.multiassetoms.posttrade.model.Trade;
+import com.multiassetoms.posttrade.model.TradeNotFoundException;
 import com.multiassetoms.posttrade.model.TradeStatus;
 import org.junit.jupiter.api.Test;
 
@@ -160,8 +162,8 @@ class SettlementServiceTest {
 
     @Test
     void rejectsMissingTradeId() {
-        SettlementException exception = assertThrows(
-                SettlementException.class,
+        TradeNotFoundException exception = assertThrows(
+                TradeNotFoundException.class,
                 () -> service.scheduleSettlement(
                         UUID.fromString("00000000-0000-0000-0000-000000007099"),
                         LocalDate.parse("2026-05-24")
@@ -173,8 +175,8 @@ class SettlementServiceTest {
 
     @Test
     void rejectsMissingSettlementId() {
-        SettlementException exception = assertThrows(
-                SettlementException.class,
+        SettlementNotFoundException exception = assertThrows(
+                SettlementNotFoundException.class,
                 () -> service.confirmSettlement(
                         UUID.fromString("00000000-0000-0000-0000-000000008099")
                 )
