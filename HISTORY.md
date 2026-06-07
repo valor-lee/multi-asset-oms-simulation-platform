@@ -6,6 +6,40 @@
 
 ### 2026.06.07 slice
 
+캡처된 trade를 settlement 예정 상태로 등록하고 settlement 완료를 HTTP API로 확인할 수 있도록 post-trade API를 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/post-trade/trades/{tradeId}/settlements` 추가
+  - `Trade(CAPTURED)`를 settlement 예정으로 등록
+  - settlement 생성 후 trade는 `SETTLEMENT_PENDING` 상태로 전이
+  - 이미 settlement가 있는 trade는 기존 settlement 반환
+- `POST /api/post-trade/settlements/{settlementId}/confirmations` 추가
+  - `Settlement(PENDING)`을 `SETTLED` 상태로 전이
+  - 연결된 trade도 `SETTLED` 상태로 전이
+  - 이미 `SETTLED`인 settlement는 중복 완료 요청으로 보고 기존 settlement 반환
+- `SettlementScheduleRequest` 추가
+  - `settlementDate` 누락은 `400 Bad Request`
+- `TradeNotFoundException`, `SettlementNotFoundException`, `PostTradeRequestException` 추가
+  - post-trade API에서 400/404/409를 명확히 구분
+- settlement controller 테스트 추가
+- `docs/post-trade-api.md`, `docs/restful-api-strategy.md`에 settlement API 사용법과 endpoint 추가
+
+#### 메모
+
+- 이번 API는 `Trade(CAPTURED) -> Settlement(PENDING) -> Settlement(SETTLED)` 흐름을 HTTP 레벨로 연결하는 단계다.
+- trade capture는 "거래가 발생했다"를 기록하고, settlement는 "결제일에 돈과 자산 이동을 완료한다"를 관리한다.
+- settlement schedule과 trade `SETTLEMENT_PENDING` 전이는 실제 DB 적용 시 하나의 transaction으로 묶어야 한다.
+- settlement confirmation과 trade `SETTLED` 전이도 함께 커밋되어야 정산 상태 조회와 후속 원장 반영이 같은 사실을 보게 된다.
+- 다음 slice에서는 `Trade(SETTLED)`를 position/cash ledger에 함께 posting하는 API를 열 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+- 전체 빌드: `./gradlew build`
+
+### 2026.06.07 slice
+
 execution에서 체결이 끝난 order를 HTTP API로 post-trade trade로 capture할 수 있도록 진입점을 추가.
 
 #### 이번 슬라이스에서 한 일

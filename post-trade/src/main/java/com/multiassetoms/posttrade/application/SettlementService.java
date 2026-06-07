@@ -4,8 +4,10 @@ import com.multiassetoms.posttrade.application.port.SettlementRepository;
 import com.multiassetoms.posttrade.application.port.TradeRepository;
 import com.multiassetoms.posttrade.model.Settlement;
 import com.multiassetoms.posttrade.model.SettlementException;
+import com.multiassetoms.posttrade.model.SettlementNotFoundException;
 import com.multiassetoms.posttrade.model.SettlementStatus;
 import com.multiassetoms.posttrade.model.Trade;
+import com.multiassetoms.posttrade.model.TradeNotFoundException;
 import com.multiassetoms.posttrade.model.TradeStatus;
 import org.springframework.stereotype.Service;
 
@@ -80,7 +82,7 @@ public class SettlementService {
      */
     public Settlement confirmSettlement(UUID settlementId) {
         Settlement settlement = settlementRepository.findBySettlementId(settlementId)
-                .orElseThrow(() -> new SettlementException("settlement not found"));
+                .orElseThrow(() -> new SettlementNotFoundException("settlement not found"));
 
         if (settlement.status() == SettlementStatus.SETTLED) {
             return settlement;
@@ -105,7 +107,7 @@ public class SettlementService {
 
     private Trade findTrade(UUID tradeId) {
         return tradeRepository.findByTradeId(tradeId)
-                .orElseThrow(() -> new SettlementException("trade not found"));
+                .orElseThrow(() -> new TradeNotFoundException("trade not found"));
     }
 
     private void validateSettlementDate(LocalDate settlementDate) {
