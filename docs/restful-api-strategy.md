@@ -374,6 +374,8 @@ API 문서에는 최소한 다음을 포함한다.
 | `intent-generation` | `POST /api/order-intents/strategy` | 전략 신호 주문 의도 생성 |
 | `intent-generation` | `GET /api/order-intents/{intentId}` | 주문 의도 단건 조회 |
 | `intent-generation` | `GET /api/order-intents?idempotencyKey=...` | idempotency key 기준 주문 의도 조회 |
+| `market-data` | `PUT /api/market-data/instruments/{instrumentId}/prices/latest` | instrument 최신 시장 가격 저장 |
+| `market-data` | `GET /api/market-data/instruments/{instrumentId}/prices/latest` | instrument 최신 시장 가격 조회 |
 | `pre-trade-risk` | `POST /api/pre-trade-risk/order-intents/{intentId}/evaluations` | 주문 의도 사전 리스크 평가 |
 | `execution` | `POST /api/order-intents/{intentId}/orders` | risk 승인 주문 의도를 order로 변환 |
 | `execution` | `POST /api/orders/{orderId}/submissions` | 생성된 order 제출 처리 |

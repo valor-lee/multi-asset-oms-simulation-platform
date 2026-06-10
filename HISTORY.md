@@ -2,6 +2,37 @@
 
 프로젝트 slice 작업 이력을 한곳에 모아 기록한다.
 
+## market-data
+
+### 2026.06.11 slice
+
+pre-trade risk와 post-trade PnL에서 참조할 수 있는 instrument별 최신 시장 가격 API를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `PUT /api/market-data/instruments/{instrumentId}/prices/latest` 추가
+  - instrument별 latest market price 저장/교체
+  - `price`는 필수이며 0보다 커야 함
+  - `observedAt`이 없으면 서버 저장 시각을 관측 시각으로 사용
+- `GET /api/market-data/instruments/{instrumentId}/prices/latest` 추가
+  - instrument별 latest market price 조회
+- `MarketPrice`, `MarketPriceService`, `MarketPriceRepository` 추가
+- `InMemoryMarketPriceRepository` 추가
+- `MarketDataExceptionHandler`로 400/404 오류 응답 정리
+- service, repository, controller 테스트 추가
+- `docs/market-data-api.md`, `docs/restful-api-strategy.md`, `README.md` 갱신
+
+#### 메모
+
+- 이번 API는 가격 시계열 전체가 아니라 "현재 최신 가격"만 다루는 MVP 경계다.
+- latest price는 instrument별 하나의 리소스를 교체하는 성격이므로 `PUT`으로 열었다.
+- 이후 price band context, unrealized PnL의 `marketPrice` 입력을 이 market-data service에서 가져오도록 연결할 수 있다.
+- market replay나 과거 가격 조회가 필요해지면 latest price와 별도로 price tick/history 저장소를 추가한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :market-data:test`
+
 ## post-trade
 
 ### 2026.06.07 slice
