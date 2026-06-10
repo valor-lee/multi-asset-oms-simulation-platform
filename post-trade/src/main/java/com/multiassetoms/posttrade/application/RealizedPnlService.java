@@ -6,6 +6,7 @@ import com.multiassetoms.posttrade.application.port.TradeRepository;
 import com.multiassetoms.posttrade.model.RealizedPnlEntry;
 import com.multiassetoms.posttrade.model.RealizedPnlException;
 import com.multiassetoms.posttrade.model.Trade;
+import com.multiassetoms.posttrade.model.TradeNotFoundException;
 import com.multiassetoms.posttrade.model.TradeStatus;
 import org.springframework.stereotype.Service;
 
@@ -50,7 +51,7 @@ public class RealizedPnlService {
         }
 
         Trade trade = tradeRepository.findByTradeId(tradeId)
-                .orElseThrow(() -> new RealizedPnlException("trade not found"));
+                .orElseThrow(() -> new TradeNotFoundException("trade not found"));
 
         validatePostable(trade, averageCost);
         return realizedPnlRepository.save(toPnlEntry(trade, averageCost, Instant.now(clock)));

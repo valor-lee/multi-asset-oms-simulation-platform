@@ -3,10 +3,12 @@ package com.multiassetoms.posttrade.application;
 import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.posttrade.model.PostTradeRequestException;
 import com.multiassetoms.posttrade.model.LedgerPostingException;
+import com.multiassetoms.posttrade.model.RealizedPnlException;
 import com.multiassetoms.posttrade.model.SettlementException;
 import com.multiassetoms.posttrade.model.SettlementNotFoundException;
 import com.multiassetoms.posttrade.model.TradeCaptureException;
 import com.multiassetoms.posttrade.model.TradeNotFoundException;
+import com.multiassetoms.posttrade.model.UnrealizedPnlException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -54,6 +56,18 @@ public class PostTradeExceptionHandler {
     @ExceptionHandler(LedgerPostingException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleLedgerPostingException(LedgerPostingException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(RealizedPnlException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleRealizedPnlException(RealizedPnlException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(UnrealizedPnlException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleUnrealizedPnlException(UnrealizedPnlException exception) {
         return new ErrorResponse(exception.getMessage());
     }
 

@@ -388,6 +388,9 @@ API 문서에는 최소한 다음을 포함한다.
 | `post-trade` | `POST /api/post-trade/trades/{tradeId}/ledger-postings` | settled trade를 position/cash ledger에 posting |
 | `post-trade` | `GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}` | portfolio/instrument 현재 position 조회 |
 | `post-trade` | `GET /api/post-trade/portfolios/{portfolioId}/cash` | portfolio 현재 cash 조회 |
+| `post-trade` | `POST /api/post-trade/trades/{tradeId}/realized-pnl-postings` | settled SELL trade의 realized PnL posting |
+| `post-trade` | `GET /api/post-trade/portfolios/{portfolioId}/realized-pnl` | portfolio 현재 누적 realized PnL 조회 |
+| `post-trade` | `GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl` | 현재 position 기준 unrealized PnL snapshot 조회 |
 | `audit-replay` | `GET /api/audit-replay/order-replay/consistency-report` | 전체 replay consistency report 조회 |
 | `audit-replay` | `GET /api/audit-replay/order-replay/consistency/{orderId}` | 단건 consistency 조회 |
 | `audit-replay` | `GET /api/audit-replay/order-replay/stored-orders/{orderId}` | 저장된 order 기준 execution replay 조회 |
