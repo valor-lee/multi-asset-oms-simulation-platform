@@ -155,6 +155,37 @@ class PnlControllerTest {
                 .andExpect(jsonPath("$.unrealizedPnl").value(10000));
     }
 
+    @Test
+    void getsUnrealizedPnlSnapshotWithLatestMarketPrice() throws Exception {
+        UnrealizedPnlSnapshot snapshot = new UnrealizedPnlSnapshot(
+                "portfolio-1",
+                "005930",
+                new BigDecimal("10"),
+                new BigDecimal("54000"),
+                new BigDecimal("55000"),
+                new BigDecimal("540000"),
+                new BigDecimal("550000"),
+                new BigDecimal("10000"),
+                Instant.parse("2026-06-07T00:00:00Z")
+        );
+
+        when(unrealizedPnlService.snapshotWithLatestMarketPrice(
+                "portfolio-1",
+                "005930",
+                new BigDecimal("54000")
+        )).thenReturn(snapshot);
+
+        mockMvc.perform(get("/api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl/latest",
+                        "portfolio-1",
+                        "005930")
+                        .queryParam("averageCost", "54000"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.portfolioId").value("portfolio-1"))
+                .andExpect(jsonPath("$.instrumentId").value("005930"))
+                .andExpect(jsonPath("$.marketPrice").value(55000))
+                .andExpect(jsonPath("$.unrealizedPnl").value(10000));
+    }
+
     private RealizedPnlEntry realizedPnlEntry(UUID tradeId) {
         return new RealizedPnlEntry(
                 UUID.fromString("00000000-0000-0000-0000-000000053001"),

@@ -412,9 +412,48 @@ unrealizedPnl = marketValue - costBasis
 
 현재 position이 없으면 `quantity`, `costBasis`, `marketValue`, `unrealizedPnl`은 모두 `0`으로 응답한다.
 
+## 10. Latest Market Price 기준 Unrealized PnL Snapshot 조회
+
+```http
+GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl/latest?averageCost=54000
+```
+
+### Query Parameters
+
+| Name | 의미 |
+| --- | --- |
+| `averageCost` | 현재 보유 position의 평균 원가 |
+
+### Response
+
+```json
+{
+  "portfolioId": "portfolio-1",
+  "instrumentId": "005930",
+  "quantity": 10,
+  "averageCost": 54000,
+  "marketPrice": 55000,
+  "costBasis": 540000,
+  "marketValue": 550000,
+  "unrealizedPnl": 10000,
+  "valuedAt": "2026-06-07T00:00:00Z"
+}
+```
+
+이 API는 `market-data`에 저장된 instrument별 latest market price를 조회해 `marketPrice`로 사용한다. 호출자가 직접 가격을 넘기는 기본 snapshot API보다 운영 흐름에 더 가깝다.
+
+저장된 latest market price가 없으면 `404 Not Found`를 반환한다.
+
+```json
+{
+  "message": "market price not found"
+}
+```
+
 ## PnL 메모
 
 - realized PnL은 매도가 확정된 뒤 실제로 실현된 손익이다.
 - unrealized PnL은 아직 보유 중인 position을 현재가로 평가한 손익이다.
 - realized PnL posting은 상태를 변경하고 entry를 만들기 때문에 `POST`로 둔다.
 - unrealized PnL snapshot은 저장하지 않는 계산 결과이므로 `GET`으로 둔다.
+- latest market price 기반 snapshot은 market-data의 현재 가격을 사용하므로, 가격 수집/갱신이 먼저 되어 있어야 한다.

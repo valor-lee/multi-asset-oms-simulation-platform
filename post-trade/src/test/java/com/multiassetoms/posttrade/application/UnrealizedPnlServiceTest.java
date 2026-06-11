@@ -1,5 +1,8 @@
 package com.multiassetoms.posttrade.application;
 
+import com.multiassetoms.marketdata.application.MarketPriceService;
+import com.multiassetoms.marketdata.infrastructure.InMemoryMarketPriceRepository;
+import com.multiassetoms.marketdata.model.MarketPriceNotFoundException;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.posttrade.infrastructure.InMemoryPositionLedgerRepository;
 import com.multiassetoms.posttrade.infrastructure.InMemoryTradeRepository;
@@ -27,6 +30,12 @@ class UnrealizedPnlServiceTest {
     private final InMemoryTradeRepository tradeRepository = new InMemoryTradeRepository();
     private final InMemoryPositionLedgerRepository positionLedgerRepository =
             new InMemoryPositionLedgerRepository();
+    private final InMemoryMarketPriceRepository marketPriceRepository =
+            new InMemoryMarketPriceRepository();
+    private final MarketPriceService marketPriceService = new MarketPriceService(
+            marketPriceRepository,
+            fixedClock
+    );
     private final PositionLedgerService positionLedgerService = new PositionLedgerService(
             tradeRepository,
             positionLedgerRepository,
@@ -34,6 +43,7 @@ class UnrealizedPnlServiceTest {
     );
     private final UnrealizedPnlService service = new UnrealizedPnlService(
             positionLedgerService,
+            marketPriceService,
             fixedClock
     );
 
@@ -83,6 +93,45 @@ class UnrealizedPnlServiceTest {
         );
 
         assertEquals(new BigDecimal("-10000"), snapshot.unrealizedPnl());
+    }
+
+    @Test
+    void calculatesUnrealizedPnlWithLatestMarketPrice() {
+        Trade trade = createTrade(
+                UUID.fromString("00000000-0000-0000-0000-000000014004"),
+                OrderSide.BUY,
+                new BigDecimal("10")
+        );
+        tradeRepository.save(trade);
+        positionLedgerService.post(trade.tradeId());
+        marketPriceService.upsertLatestPrice(
+                "005930",
+                new BigDecimal("55000"),
+                Instant.parse("2026-05-27T01:59:00Z")
+        );
+
+        UnrealizedPnlSnapshot snapshot = service.snapshotWithLatestMarketPrice(
+                "portfolio-1",
+                "005930",
+                new BigDecimal("54000")
+        );
+
+        assertEquals(new BigDecimal("55000"), snapshot.marketPrice());
+        assertEquals(new BigDecimal("10000"), snapshot.unrealizedPnl());
+    }
+
+    @Test
+    void rejectsMissingLatestMarketPrice() {
+        MarketPriceNotFoundException exception = assertThrows(
+                MarketPriceNotFoundException.class,
+                () -> service.snapshotWithLatestMarketPrice(
+                        "portfolio-1",
+                        "005930",
+                        new BigDecimal("54000")
+                )
+        );
+
+        assertEquals("market price not found", exception.getMessage());
     }
 
     @Test

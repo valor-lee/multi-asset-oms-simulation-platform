@@ -1,5 +1,6 @@
 package com.multiassetoms.posttrade.application;
 
+import com.multiassetoms.marketdata.model.MarketPriceNotFoundException;
 import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.posttrade.model.PostTradeRequestException;
 import com.multiassetoms.posttrade.model.LedgerPostingException;
@@ -38,6 +39,12 @@ public class PostTradeExceptionHandler {
     @ExceptionHandler(SettlementNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleSettlementNotFoundException(SettlementNotFoundException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(MarketPriceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleMarketPriceNotFoundException(MarketPriceNotFoundException exception) {
         return new ErrorResponse(exception.getMessage());
     }
 
