@@ -1,5 +1,7 @@
 package com.multiassetoms.posttrade.application;
 
+import com.multiassetoms.marketdata.application.MarketPriceService;
+import com.multiassetoms.marketdata.model.MarketPrice;
 import com.multiassetoms.posttrade.model.UnrealizedPnlException;
 import com.multiassetoms.posttrade.model.UnrealizedPnlSnapshot;
 import org.springframework.stereotype.Service;
@@ -12,10 +14,16 @@ import java.time.Instant;
 public class UnrealizedPnlService {
 
     private final PositionLedgerService positionLedgerService;
+    private final MarketPriceService marketPriceService;
     private final Clock clock;
 
-    public UnrealizedPnlService(PositionLedgerService positionLedgerService, Clock clock) {
+    public UnrealizedPnlService(
+            PositionLedgerService positionLedgerService,
+            MarketPriceService marketPriceService,
+            Clock clock
+    ) {
         this.positionLedgerService = positionLedgerService;
+        this.marketPriceService = marketPriceService;
         this.clock = clock;
     }
 
@@ -52,6 +60,24 @@ public class UnrealizedPnlService {
                 marketValue.subtract(costBasis),
                 Instant.now(clock)
         );
+    }
+
+    /**
+     * market-data에 저장된 최신 시장 가격을 사용해 평가손익 snapshot을 계산한다.
+     *
+     * @param portfolioId portfolio id
+     * @param instrumentId instrument id
+     * @param averageCost 현재 position의 평균 원가
+     * @return 최신 시장 가격 기준 평가금액과 평가손익 snapshot
+     */
+    public UnrealizedPnlSnapshot snapshotWithLatestMarketPrice(
+            String portfolioId,
+            String instrumentId,
+            BigDecimal averageCost
+    ) {
+        validateInputs(portfolioId, instrumentId, averageCost, BigDecimal.ZERO);
+        MarketPrice latestPrice = marketPriceService.latestPrice(instrumentId);
+        return snapshot(portfolioId, instrumentId, averageCost, latestPrice.price());
     }
 
     private void validateInputs(

@@ -55,4 +55,17 @@ public class PnlController {
     ) {
         return unrealizedPnlService.snapshot(portfolioId, instrumentId, averageCost, marketPrice);
     }
+
+    @GetMapping("/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl/latest")
+    public UnrealizedPnlSnapshot unrealizedPnlSnapshotWithLatestMarketPrice(
+            @PathVariable("portfolioId") String portfolioId,
+            @PathVariable("instrumentId") String instrumentId,
+            @RequestParam("averageCost") BigDecimal averageCost
+    ) {
+        return unrealizedPnlService.snapshotWithLatestMarketPrice(
+                portfolioId,
+                instrumentId,
+                averageCost
+        );
+    }
 }

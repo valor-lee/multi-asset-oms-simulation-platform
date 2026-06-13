@@ -2,6 +2,33 @@
 
 프로젝트 slice 작업 이력을 한곳에 모아 기록한다.
 
+## post-trade
+
+### 2026.06.12 slice
+
+post-trade unrealized PnL 계산이 market-data의 latest market price를 사용할 수 있도록 API를 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl/latest` 추가
+  - `averageCost`는 요청값으로 받고, `marketPrice`는 market-data latest price에서 조회
+  - 저장된 latest market price가 없으면 `404 Not Found`
+- `UnrealizedPnlService`에 `snapshotWithLatestMarketPrice()` 추가
+- `PostTradeExceptionHandler`에 `MarketPriceNotFoundException` 매핑 추가
+- PnL controller/service 테스트 추가
+- `docs/post-trade-api.md`, `docs/market-data-api.md`, `docs/restful-api-strategy.md` 갱신
+
+#### 메모
+
+- 기존 `unrealized-pnl?averageCost=...&marketPrice=...` API는 테스트/시뮬레이션처럼 호출자가 가격을 직접 넘기는 경계로 유지한다.
+- 새 latest endpoint는 운영 흐름에 더 가깝게 market-data가 관리하는 최신 가격을 사용한다.
+- 평균 원가는 아직 position lot이나 average cost ledger가 없으므로 계속 요청값으로 받는다.
+- 이후 average cost 저장 구조가 생기면 `averageCost`도 서버 내부에서 조회하도록 바꿀 수 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+
 ## market-data
 
 ### 2026.06.11 slice
