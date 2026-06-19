@@ -97,7 +97,7 @@ request body는 선택값이다. body를 생략하면 기본 규칙과 빈 conte
 
 - `idempotencyKey`는 주문 의도 생성 요청의 재시도 방어다.
 - 같은 payload지만 다른 `idempotencyKey`로 생성된 주문 의심 케이스는 `duplicateOpenOrderExists`와 `duplicateOpenOrderId`로 risk context에 전달한다.
-- 실제 open order 조회는 아직 API 내부에서 수행하지 않고, 호출자가 조회한 context를 전달하는 계약으로 둔다.
+- duplicate open order context는 execution의 `GET /api/orders/duplicate-open-order` 조회 결과로 채울 수 있다.
 - 기본 평가 API에서는 price band도 호출자가 `lowerPriceBand`, `upperPriceBand`를 직접 전달한다.
 
 ## 2. Latest Market Price 기준 Risk 평가
