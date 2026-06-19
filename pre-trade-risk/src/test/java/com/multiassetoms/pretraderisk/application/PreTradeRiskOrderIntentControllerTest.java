@@ -103,6 +103,57 @@ class PreTradeRiskOrderIntentControllerTest {
     }
 
     @Test
+    void evaluatesOrderIntentWithLatestPriceBand() throws Exception {
+        UUID intentId = UUID.fromString("00000000-0000-0000-0000-000000029004");
+        OrderIntent createdIntent = orderIntent(intentId, OrderIntentStatus.CREATED);
+        OrderIntent approvedIntent = orderIntent(intentId, OrderIntentStatus.RISK_APPROVED);
+        PreTradeRiskLatestPriceBandEvaluationRequest request =
+                new PreTradeRiskLatestPriceBandEvaluationRequest(
+                        new BigDecimal("10"),
+                        new BigDecimal("550000"),
+                        new BigDecimal("100"),
+                        new BigDecimal("90"),
+                        false,
+                        null,
+                        false,
+                        new BigDecimal("0.10")
+                );
+
+        when(orderIntentQueryService.getByIntentId(intentId)).thenReturn(createdIntent);
+        when(preTradeRiskOrderIntentService.evaluateWithLatestPriceBand(
+                org.mockito.ArgumentMatchers.eq(createdIntent),
+                org.mockito.ArgumentMatchers.any(PreTradeRiskCheckContext.class),
+                org.mockito.ArgumentMatchers.eq(new BigDecimal("0.10"))
+        )).thenReturn(result(approvedIntent, PreTradeRiskDecision.APPROVED, "approved"));
+
+        mockMvc.perform(post(
+                        "/api/pre-trade-risk/order-intents/{intentId}/evaluations/latest-price-band",
+                        intentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.intent.intentId").value(intentId.toString()))
+                .andExpect(jsonPath("$.intent.status").value("RISK_APPROVED"))
+                .andExpect(jsonPath("$.riskCheckResult.decision").value("APPROVED"));
+    }
+
+    @Test
+    void returnsBadRequestWhenPriceBandRateIsMissing() throws Exception {
+        UUID intentId = UUID.fromString("00000000-0000-0000-0000-000000029005");
+        OrderIntent createdIntent = orderIntent(intentId, OrderIntentStatus.CREATED);
+
+        when(orderIntentQueryService.getByIntentId(intentId)).thenReturn(createdIntent);
+
+        mockMvc.perform(post(
+                        "/api/pre-trade-risk/order-intents/{intentId}/evaluations/latest-price-band",
+                        intentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("priceBandRate is required"));
+    }
+
+    @Test
     void returnsNotFoundWhenOrderIntentDoesNotExist() throws Exception {
         UUID intentId = UUID.fromString("00000000-0000-0000-0000-000000029002");
         when(orderIntentQueryService.getByIntentId(intentId))

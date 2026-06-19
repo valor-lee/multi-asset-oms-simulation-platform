@@ -1,28 +1,37 @@
 package com.multiassetoms.pretraderisk.application;
 
+import com.multiassetoms.marketdata.application.MarketPriceService;
+import com.multiassetoms.marketdata.model.MarketPrice;
 import com.multiassetoms.intentgeneration.application.OrderIntentRepository;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
 import com.multiassetoms.intentgeneration.model.OrderIntentStatus;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskMarketContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskOrderIntentResult;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskRequestException;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskTransitionException;
 import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
 
 @Service
 public class PreTradeRiskOrderIntentService {
 
     private final PreTradeRiskCheckService riskCheckService;
     private final OrderIntentRepository orderIntentRepository;
+    private final MarketPriceService marketPriceService;
 
     public PreTradeRiskOrderIntentService(
             PreTradeRiskCheckService riskCheckService,
-            OrderIntentRepository orderIntentRepository
+            OrderIntentRepository orderIntentRepository,
+            MarketPriceService marketPriceService
     ) {
         this.riskCheckService = riskCheckService;
         this.orderIntentRepository = orderIntentRepository;
+        this.marketPriceService = marketPriceService;
     }
 
     /**
@@ -56,6 +65,65 @@ public class PreTradeRiskOrderIntentService {
         OrderIntent savedIntent = orderIntentRepository.save(transitionedIntent);
 
         return new PreTradeRiskOrderIntentResult(savedIntent, riskCheckResult);
+    }
+
+    /**
+     * market-data에 저장된 최신 가격을 기준으로 price band context를 구성한 뒤 risk 평가를 수행한다.
+     * priceBandRate가 0.10이면 latest price 기준 -10% ~ +10%를 허용 가격 구간으로 본다.
+     *
+     * @param intent pre-trade risk 평가 대상 order intent. CREATED 상태만 허용한다.
+     * @param baseContext market context 외 나머지 limit, exposure, open order, control context
+     * @param priceBandRate latest price 기준 허용 가격 비율
+     * @return risk 평가 결과와 저장된 다음 상태 order intent
+     */
+    public PreTradeRiskOrderIntentResult evaluateWithLatestPriceBand(
+            OrderIntent intent,
+            PreTradeRiskCheckContext baseContext,
+            BigDecimal priceBandRate
+    ) {
+        validateCreated(intent);
+        validatePriceBandRate(priceBandRate);
+        MarketPrice latestPrice = marketPriceService.latestPrice(intent.instrumentId());
+        PreTradeRiskCheckContext mergedContext = withMarketContext(
+                baseContext,
+                priceBandContext(latestPrice.price(), priceBandRate)
+        );
+        return evaluate(intent, mergedContext);
+    }
+
+    private void validatePriceBandRate(BigDecimal priceBandRate) {
+        if (priceBandRate == null) {
+            throw new PreTradeRiskRequestException("priceBandRate is required");
+        }
+        if (priceBandRate.compareTo(BigDecimal.ZERO) < 0
+                || priceBandRate.compareTo(BigDecimal.ONE) > 0) {
+            throw new PreTradeRiskRequestException("priceBandRate must be between 0 and 1");
+        }
+    }
+
+    private PreTradeRiskMarketContext priceBandContext(
+            BigDecimal latestPrice,
+            BigDecimal priceBandRate
+    ) {
+        BigDecimal lowerPriceBand = latestPrice.multiply(BigDecimal.ONE.subtract(priceBandRate));
+        BigDecimal upperPriceBand = latestPrice.multiply(BigDecimal.ONE.add(priceBandRate));
+        return new PreTradeRiskMarketContext(lowerPriceBand, upperPriceBand);
+    }
+
+    private PreTradeRiskCheckContext withMarketContext(
+            PreTradeRiskCheckContext baseContext,
+            PreTradeRiskMarketContext marketContext
+    ) {
+        PreTradeRiskCheckContext safeBaseContext = baseContext == null
+                ? PreTradeRiskCheckContext.empty()
+                : baseContext;
+        return new PreTradeRiskCheckContext(
+                safeBaseContext.limitContext(),
+                safeBaseContext.exposureContext(),
+                safeBaseContext.openOrderContext(),
+                marketContext,
+                safeBaseContext.controlContext()
+        );
     }
 
     /**

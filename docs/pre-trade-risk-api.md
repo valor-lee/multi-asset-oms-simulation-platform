@@ -98,3 +98,71 @@ request body는 선택값이다. body를 생략하면 기본 규칙과 빈 conte
 - `idempotencyKey`는 주문 의도 생성 요청의 재시도 방어다.
 - 같은 payload지만 다른 `idempotencyKey`로 생성된 주문 의심 케이스는 `duplicateOpenOrderExists`와 `duplicateOpenOrderId`로 risk context에 전달한다.
 - 실제 open order 조회는 아직 API 내부에서 수행하지 않고, 호출자가 조회한 context를 전달하는 계약으로 둔다.
+- 기본 평가 API에서는 price band도 호출자가 `lowerPriceBand`, `upperPriceBand`를 직접 전달한다.
+
+## 2. Latest Market Price 기준 Risk 평가
+
+```http
+POST /api/pre-trade-risk/order-intents/{intentId}/evaluations/latest-price-band
+Content-Type: application/json
+```
+
+이 API는 `market-data`에 저장된 instrument별 latest market price를 조회해 price band context를 구성한 뒤 risk 평가를 수행한다.
+
+### Request
+
+```json
+{
+  "maxOrderQty": 10,
+  "maxOrderNotional": 550000,
+  "maxPositionQty": 100,
+  "currentPositionQty": 90,
+  "duplicateOpenOrderExists": false,
+  "duplicateOpenOrderId": null,
+  "killSwitchEnabled": false,
+  "priceBandRate": 0.1
+}
+```
+
+`priceBandRate`는 latest market price 기준 허용 가격 비율이다. `0.1`이면 -10% ~ +10% 밴드를 의미한다.
+
+### Price Band 계산
+
+```text
+lowerPriceBand = latestPrice * (1 - priceBandRate)
+upperPriceBand = latestPrice * (1 + priceBandRate)
+```
+
+예를 들어 latest price가 `55000`, `priceBandRate`가 `0.1`이면 허용 가격 구간은 다음과 같다.
+
+```text
+49500 <= limitPrice <= 60500
+```
+
+응답 구조는 기본 risk evaluation API와 동일하다.
+
+### Error Response
+
+`priceBandRate`가 없으면 `400 Bad Request`를 반환한다.
+
+```json
+{
+  "message": "priceBandRate is required"
+}
+```
+
+`priceBandRate`가 0보다 작거나 1보다 크면 `400 Bad Request`를 반환한다.
+
+```json
+{
+  "message": "priceBandRate must be between 0 and 1"
+}
+```
+
+market-data에 latest market price가 없으면 `404 Not Found`를 반환한다.
+
+```json
+{
+  "message": "market price not found"
+}
+```

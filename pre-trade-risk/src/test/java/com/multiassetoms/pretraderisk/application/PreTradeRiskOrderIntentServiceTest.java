@@ -1,5 +1,8 @@
 package com.multiassetoms.pretraderisk.application;
 
+import com.multiassetoms.marketdata.application.MarketPriceService;
+import com.multiassetoms.marketdata.infrastructure.InMemoryMarketPriceRepository;
+import com.multiassetoms.marketdata.model.MarketPriceNotFoundException;
 import com.multiassetoms.intentgeneration.infrastructure.InMemoryOrderIntentRepository;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
 import com.multiassetoms.intentgeneration.model.OrderIntentSourceType;
@@ -10,6 +13,8 @@ import com.multiassetoms.intentgeneration.model.TimeInForce;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskLimitContext;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleCode;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskRuleStatus;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskOrderIntentResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskTransitionException;
 import org.junit.jupiter.api.Test;
@@ -28,9 +33,15 @@ class PreTradeRiskOrderIntentServiceTest {
     private final Clock fixedClock = Clock.fixed(Instant.parse("2026-05-09T00:00:00Z"), ZoneOffset.UTC);
     private final PreTradeRiskCheckService riskCheckService = new PreTradeRiskCheckService(fixedClock);
     private final InMemoryOrderIntentRepository orderIntentRepository = new InMemoryOrderIntentRepository();
+    private final InMemoryMarketPriceRepository marketPriceRepository = new InMemoryMarketPriceRepository();
+    private final MarketPriceService marketPriceService = new MarketPriceService(
+            marketPriceRepository,
+            fixedClock
+    );
     private final PreTradeRiskOrderIntentService service = new PreTradeRiskOrderIntentService(
             riskCheckService,
-            orderIntentRepository
+            orderIntentRepository,
+            marketPriceService
     );
 
     @Test
@@ -96,6 +107,92 @@ class PreTradeRiskOrderIntentServiceTest {
         );
 
         assertEquals("only CREATED order intents can be evaluated by pre-trade risk", exception.getMessage());
+    }
+
+    @Test
+    void evaluatesWithLatestPriceBand() {
+        OrderIntent intent = createdIntent(
+                UUID.fromString("00000000-0000-0000-0000-000000000104"),
+                new BigDecimal("10"),
+                new BigDecimal("55000"),
+                OrderIntentStatus.CREATED
+        );
+        marketPriceService.upsertLatestPrice(
+                "005930",
+                new BigDecimal("55000"),
+                Instant.parse("2026-05-09T08:59:00Z")
+        );
+
+        PreTradeRiskOrderIntentResult result = service.evaluateWithLatestPriceBand(
+                intent,
+                PreTradeRiskCheckContext.empty(),
+                new BigDecimal("0.10")
+        );
+
+        assertEquals(OrderIntentStatus.RISK_APPROVED, result.intent().status());
+        assertEquals(PreTradeRiskDecision.APPROVED, result.riskCheckResult().decision());
+        assertEquals(
+                PreTradeRiskRuleStatus.PASSED,
+                result.riskCheckResult().ruleResults().stream()
+                        .filter(ruleResult -> ruleResult.ruleCode() == PreTradeRiskRuleCode.PRICE_BAND)
+                        .findFirst()
+                        .orElseThrow()
+                        .status()
+        );
+        assertEquals(
+                "49500.00..60500.00",
+                result.riskCheckResult().ruleResults().stream()
+                        .filter(ruleResult -> ruleResult.ruleCode() == PreTradeRiskRuleCode.PRICE_BAND)
+                        .findFirst()
+                        .orElseThrow()
+                        .thresholdValue()
+        );
+    }
+
+    @Test
+    void rejectsWhenLimitPriceIsOutsideLatestPriceBand() {
+        OrderIntent intent = createdIntent(
+                UUID.fromString("00000000-0000-0000-0000-000000000105"),
+                new BigDecimal("10"),
+                new BigDecimal("70000"),
+                OrderIntentStatus.CREATED
+        );
+        marketPriceService.upsertLatestPrice(
+                "005930",
+                new BigDecimal("55000"),
+                Instant.parse("2026-05-09T08:59:00Z")
+        );
+
+        PreTradeRiskOrderIntentResult result = service.evaluateWithLatestPriceBand(
+                intent,
+                PreTradeRiskCheckContext.empty(),
+                new BigDecimal("0.10")
+        );
+
+        assertEquals(OrderIntentStatus.RISK_REJECTED, result.intent().status());
+        assertEquals(PreTradeRiskDecision.REJECTED, result.riskCheckResult().decision());
+        assertEquals("limitPrice is outside price band", result.riskCheckResult().reason());
+    }
+
+    @Test
+    void rejectsWhenLatestMarketPriceDoesNotExist() {
+        OrderIntent intent = createdIntent(
+                UUID.fromString("00000000-0000-0000-0000-000000000106"),
+                new BigDecimal("10"),
+                new BigDecimal("55000"),
+                OrderIntentStatus.CREATED
+        );
+
+        MarketPriceNotFoundException exception = assertThrows(
+                MarketPriceNotFoundException.class,
+                () -> service.evaluateWithLatestPriceBand(
+                        intent,
+                        PreTradeRiskCheckContext.empty(),
+                        new BigDecimal("0.10")
+                )
+        );
+
+        assertEquals("market price not found", exception.getMessage());
     }
 
     private OrderIntent createdIntent(
