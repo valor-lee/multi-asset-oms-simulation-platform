@@ -39,4 +39,17 @@ public class PreTradeRiskOrderIntentController {
 
         return preTradeRiskOrderIntentService.evaluate(intent, checkContext);
     }
+
+    @PostMapping("/{intentId}/evaluations/latest-price-band")
+    public PreTradeRiskOrderIntentResult evaluateWithLatestPriceBand(
+            @PathVariable("intentId") UUID intentId,
+            @RequestBody PreTradeRiskLatestPriceBandEvaluationRequest request
+    ) {
+        OrderIntent intent = orderIntentQueryService.getByIntentId(intentId);
+        return preTradeRiskOrderIntentService.evaluateWithLatestPriceBand(
+                intent,
+                request.toBaseCheckContext(),
+                request.requirePriceBandRate()
+        );
+    }
 }

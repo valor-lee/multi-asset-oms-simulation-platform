@@ -2,6 +2,36 @@
 
 프로젝트 slice 작업 이력을 한곳에 모아 기록한다.
 
+## pre-trade-risk
+
+### 2026.06.19 slice
+
+market-data의 latest market price를 사용해 price band context를 구성하는 pre-trade risk 평가 API를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/pre-trade-risk/order-intents/{intentId}/evaluations/latest-price-band` 추가
+  - `priceBandRate`를 받아 latest price 기준 허용 가격 구간 계산
+  - `lowerPriceBand = latestPrice * (1 - priceBandRate)`
+  - `upperPriceBand = latestPrice * (1 + priceBandRate)`
+- `PreTradeRiskLatestPriceBandEvaluationRequest` 추가
+  - 기존 risk context 필드 중 market price band를 제외하고 `priceBandRate`를 받음
+  - `priceBandRate` 누락/범위 오류는 `400 Bad Request`
+- `PreTradeRiskOrderIntentService.evaluateWithLatestPriceBand()` 추가
+- `PreTradeRiskExceptionHandler`에 market price missing과 request validation 예외 매핑 추가
+- service/controller 테스트 추가
+- `docs/pre-trade-risk-api.md`, `docs/market-data-api.md`, `docs/restful-api-strategy.md` 갱신
+
+#### 메모
+
+- 기존 risk evaluation API는 호출자가 `lowerPriceBand`, `upperPriceBand`를 직접 전달하는 시뮬레이션/오케스트레이션 경계로 유지한다.
+- 새 latest price band API는 market-data가 관리하는 최신 가격으로 price band를 구성하므로 운영 흐름에 더 가깝다.
+- 실제 거래소/증권사 시세 연동은 아직 없고, market-data latest price가 먼저 저장되어 있어야 한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :pre-trade-risk:test`
+
 ## post-trade
 
 ### 2026.06.12 slice

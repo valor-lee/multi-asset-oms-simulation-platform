@@ -96,5 +96,5 @@ GET /api/market-data/instruments/{instrumentId}/prices/latest
 - `PUT`을 사용한 이유는 `/{instrumentId}/prices/latest`라는 단일 latest price 리소스를 교체하는 동작이기 때문이다.
 - 현재는 in-memory repository에 최신값만 보관한다.
 - 이후 market replay, 시계열 차트, 과거 가격 검증이 필요해지면 `MarketPriceTick` 또는 `MarketPriceHistory` 테이블을 별도로 추가한다.
-- pre-trade risk의 price band context는 이후 이 API 또는 내부 market-data service에서 가져오도록 연결할 수 있다.
+- pre-trade risk의 latest price band evaluation API는 이 latest price로 `lowerPriceBand`, `upperPriceBand`를 계산한다.
 - post-trade의 latest market price 기반 unrealized PnL API는 이 latest price를 `marketPrice`로 사용한다.

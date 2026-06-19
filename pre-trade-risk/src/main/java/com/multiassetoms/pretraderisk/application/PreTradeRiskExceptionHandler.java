@@ -1,6 +1,8 @@
 package com.multiassetoms.pretraderisk.application;
 
+import com.multiassetoms.marketdata.model.MarketPriceNotFoundException;
 import com.multiassetoms.intentgeneration.model.OrderIntentNotFoundException;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskRequestException;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskTransitionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,6 +15,18 @@ public class PreTradeRiskExceptionHandler {
     @ExceptionHandler(OrderIntentNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleOrderIntentNotFoundException(OrderIntentNotFoundException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(MarketPriceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleMarketPriceNotFoundException(MarketPriceNotFoundException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(PreTradeRiskRequestException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleRequestException(PreTradeRiskRequestException exception) {
         return new ErrorResponse(exception.getMessage());
     }
 
