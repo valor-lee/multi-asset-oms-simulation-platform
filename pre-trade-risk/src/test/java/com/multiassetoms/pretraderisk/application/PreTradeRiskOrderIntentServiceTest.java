@@ -9,6 +9,7 @@ import com.multiassetoms.marketdata.infrastructure.InMemoryMarketPriceRepository
 import com.multiassetoms.marketdata.model.MarketPriceNotFoundException;
 import com.multiassetoms.intentgeneration.infrastructure.InMemoryOrderIntentRepository;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
+import com.multiassetoms.intentgeneration.model.OrderIntentNotFoundException;
 import com.multiassetoms.intentgeneration.model.OrderIntentSourceType;
 import com.multiassetoms.intentgeneration.model.OrderIntentStatus;
 import com.multiassetoms.intentgeneration.model.OrderSide;
@@ -72,6 +73,37 @@ class PreTradeRiskOrderIntentServiceTest {
                 OrderIntentStatus.RISK_APPROVED,
                 orderIntentRepository.findByIntentId(intent.intentId()).orElseThrow().status()
         );
+    }
+
+    @Test
+    void evaluatesOrderIntentByIntentId() {
+        OrderIntent intent = createdIntent(
+                UUID.fromString("00000000-0000-0000-0000-000000000109"),
+                new BigDecimal("10"),
+                new BigDecimal("55000"),
+                OrderIntentStatus.CREATED
+        );
+        orderIntentRepository.save(intent);
+
+        PreTradeRiskOrderIntentResult result = service.evaluate(
+                intent.intentId(),
+                PreTradeRiskCheckContext.empty()
+        );
+
+        assertEquals(OrderIntentStatus.RISK_APPROVED, result.intent().status());
+        assertEquals(PreTradeRiskDecision.APPROVED, result.riskCheckResult().decision());
+    }
+
+    @Test
+    void rejectsWhenOrderIntentDoesNotExist() {
+        UUID missingIntentId = UUID.fromString("00000000-0000-0000-0000-000000000110");
+
+        OrderIntentNotFoundException exception = assertThrows(
+                OrderIntentNotFoundException.class,
+                () -> service.evaluate(missingIntentId, PreTradeRiskCheckContext.empty())
+        );
+
+        assertEquals("order intent not found", exception.getMessage());
     }
 
     @Test

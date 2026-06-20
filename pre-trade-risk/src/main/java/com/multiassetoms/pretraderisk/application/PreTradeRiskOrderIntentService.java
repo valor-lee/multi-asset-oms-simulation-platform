@@ -6,6 +6,7 @@ import com.multiassetoms.marketdata.application.MarketPriceService;
 import com.multiassetoms.marketdata.model.MarketPrice;
 import com.multiassetoms.intentgeneration.application.OrderIntentRepository;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
+import com.multiassetoms.intentgeneration.model.OrderIntentNotFoundException;
 import com.multiassetoms.intentgeneration.model.OrderIntentStatus;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckCommand;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckContext;
@@ -19,6 +20,7 @@ import com.multiassetoms.pretraderisk.model.PreTradeRiskTransitionException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Service
 public class PreTradeRiskOrderIntentService {
@@ -48,6 +50,20 @@ public class PreTradeRiskOrderIntentService {
      */
     public PreTradeRiskOrderIntentResult evaluate(OrderIntent intent) {
         return evaluate(intent, PreTradeRiskCheckContext.empty());
+    }
+
+    /**
+     * HTTP API 같은 외부 진입점에서 intent id만 받아 risk 평가 use case 전체를 수행한다.
+     *
+     * @param intentId pre-trade risk 평가 대상 order intent id
+     * @param checkContext limit, exposure, open order, market, control 정보를 담은 risk 평가 context
+     * @return risk 평가 결과와 저장된 다음 상태 order intent
+     */
+    public PreTradeRiskOrderIntentResult evaluate(
+            UUID intentId,
+            PreTradeRiskCheckContext checkContext
+    ) {
+        return evaluate(getIntent(intentId), checkContext);
     }
 
     /**
@@ -97,6 +113,14 @@ public class PreTradeRiskOrderIntentService {
         return evaluate(intent, mergedContext);
     }
 
+    public PreTradeRiskOrderIntentResult evaluateWithLatestPriceBand(
+            UUID intentId,
+            PreTradeRiskCheckContext baseContext,
+            BigDecimal priceBandRate
+    ) {
+        return evaluateWithLatestPriceBand(getIntent(intentId), baseContext, priceBandRate);
+    }
+
     /**
      * market-data의 최신 가격과 execution의 open order 조회 결과를 risk context에 합쳐 평가한다.
      * 호출자는 limit/exposure/control 값만 넘기고, 가격 밴드와 중복 주문 여부는 서버가 조회한다.
@@ -137,6 +161,19 @@ public class PreTradeRiskOrderIntentService {
                 )
         );
         return evaluate(intent, mergedContext);
+    }
+
+    public PreTradeRiskOrderIntentResult evaluateWithLatestPriceBandAndDuplicateOpenOrder(
+            UUID intentId,
+            PreTradeRiskCheckContext baseContext,
+            BigDecimal priceBandRate
+    ) {
+        return evaluateWithLatestPriceBandAndDuplicateOpenOrder(getIntent(intentId), baseContext, priceBandRate);
+    }
+
+    private OrderIntent getIntent(UUID intentId) {
+        return orderIntentRepository.findByIntentId(intentId)
+                .orElseThrow(() -> new OrderIntentNotFoundException("order intent not found"));
     }
 
     private void validatePriceBandRate(BigDecimal priceBandRate) {

@@ -1,7 +1,6 @@
 package com.multiassetoms.pretraderisk.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.multiassetoms.intentgeneration.application.OrderIntentQueryService;
 import com.multiassetoms.intentgeneration.model.OrderIntent;
 import com.multiassetoms.intentgeneration.model.OrderIntentNotFoundException;
 import com.multiassetoms.intentgeneration.model.OrderIntentSourceType;
@@ -55,15 +54,11 @@ class PreTradeRiskOrderIntentControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private OrderIntentQueryService orderIntentQueryService;
-
-    @MockBean
     private PreTradeRiskOrderIntentService preTradeRiskOrderIntentService;
 
     @Test
     void evaluatesOrderIntentWithContext() throws Exception {
         UUID intentId = UUID.fromString("00000000-0000-0000-0000-000000029001");
-        OrderIntent createdIntent = orderIntent(intentId, OrderIntentStatus.CREATED);
         OrderIntent approvedIntent = orderIntent(intentId, OrderIntentStatus.RISK_APPROVED);
         PreTradeRiskEvaluationRequest request = new PreTradeRiskEvaluationRequest(
                 new BigDecimal("10"),
@@ -77,9 +72,8 @@ class PreTradeRiskOrderIntentControllerTest {
                 false
         );
 
-        when(orderIntentQueryService.getByIntentId(intentId)).thenReturn(createdIntent);
         when(preTradeRiskOrderIntentService.evaluate(
-                org.mockito.ArgumentMatchers.eq(createdIntent),
+                org.mockito.ArgumentMatchers.eq(intentId),
                 org.mockito.ArgumentMatchers.any(PreTradeRiskCheckContext.class)
         )).thenReturn(result(approvedIntent, PreTradeRiskDecision.APPROVED, "approved"));
 
@@ -95,7 +89,7 @@ class PreTradeRiskOrderIntentControllerTest {
         ArgumentCaptor<PreTradeRiskCheckContext> contextCaptor =
                 ArgumentCaptor.forClass(PreTradeRiskCheckContext.class);
         verify(preTradeRiskOrderIntentService).evaluate(
-                org.mockito.ArgumentMatchers.eq(createdIntent),
+                org.mockito.ArgumentMatchers.eq(intentId),
                 contextCaptor.capture()
         );
         assertEquals(new BigDecimal("10"), contextCaptor.getValue().limitContext().maxOrderQty());
@@ -105,7 +99,6 @@ class PreTradeRiskOrderIntentControllerTest {
     @Test
     void evaluatesOrderIntentWithLatestPriceBand() throws Exception {
         UUID intentId = UUID.fromString("00000000-0000-0000-0000-000000029004");
-        OrderIntent createdIntent = orderIntent(intentId, OrderIntentStatus.CREATED);
         OrderIntent approvedIntent = orderIntent(intentId, OrderIntentStatus.RISK_APPROVED);
         PreTradeRiskLatestPriceBandEvaluationRequest request =
                 new PreTradeRiskLatestPriceBandEvaluationRequest(
@@ -119,9 +112,8 @@ class PreTradeRiskOrderIntentControllerTest {
                         new BigDecimal("0.10")
                 );
 
-        when(orderIntentQueryService.getByIntentId(intentId)).thenReturn(createdIntent);
         when(preTradeRiskOrderIntentService.evaluateWithLatestPriceBand(
-                org.mockito.ArgumentMatchers.eq(createdIntent),
+                org.mockito.ArgumentMatchers.eq(intentId),
                 org.mockito.ArgumentMatchers.any(PreTradeRiskCheckContext.class),
                 org.mockito.ArgumentMatchers.eq(new BigDecimal("0.10"))
         )).thenReturn(result(approvedIntent, PreTradeRiskDecision.APPROVED, "approved"));
@@ -140,7 +132,6 @@ class PreTradeRiskOrderIntentControllerTest {
     @Test
     void evaluatesOrderIntentWithLatestPriceBandAndDuplicateOpenOrder() throws Exception {
         UUID intentId = UUID.fromString("00000000-0000-0000-0000-000000029006");
-        OrderIntent createdIntent = orderIntent(intentId, OrderIntentStatus.CREATED);
         OrderIntent rejectedIntent = orderIntent(intentId, OrderIntentStatus.RISK_REJECTED);
         PreTradeRiskLatestPriceBandDuplicateEvaluationRequest request =
                 new PreTradeRiskLatestPriceBandDuplicateEvaluationRequest(
@@ -152,9 +143,8 @@ class PreTradeRiskOrderIntentControllerTest {
                         new BigDecimal("0.10")
                 );
 
-        when(orderIntentQueryService.getByIntentId(intentId)).thenReturn(createdIntent);
         when(preTradeRiskOrderIntentService.evaluateWithLatestPriceBandAndDuplicateOpenOrder(
-                org.mockito.ArgumentMatchers.eq(createdIntent),
+                org.mockito.ArgumentMatchers.eq(intentId),
                 org.mockito.ArgumentMatchers.any(PreTradeRiskCheckContext.class),
                 org.mockito.ArgumentMatchers.eq(new BigDecimal("0.10"))
         )).thenReturn(result(rejectedIntent, PreTradeRiskDecision.REJECTED, "duplicate open order exists"));
@@ -173,7 +163,7 @@ class PreTradeRiskOrderIntentControllerTest {
         ArgumentCaptor<PreTradeRiskCheckContext> contextCaptor =
                 ArgumentCaptor.forClass(PreTradeRiskCheckContext.class);
         verify(preTradeRiskOrderIntentService).evaluateWithLatestPriceBandAndDuplicateOpenOrder(
-                org.mockito.ArgumentMatchers.eq(createdIntent),
+                org.mockito.ArgumentMatchers.eq(intentId),
                 contextCaptor.capture(),
                 org.mockito.ArgumentMatchers.eq(new BigDecimal("0.10"))
         );
@@ -183,9 +173,6 @@ class PreTradeRiskOrderIntentControllerTest {
     @Test
     void returnsBadRequestWhenPriceBandRateIsMissing() throws Exception {
         UUID intentId = UUID.fromString("00000000-0000-0000-0000-000000029005");
-        OrderIntent createdIntent = orderIntent(intentId, OrderIntentStatus.CREATED);
-
-        when(orderIntentQueryService.getByIntentId(intentId)).thenReturn(createdIntent);
 
         mockMvc.perform(post(
                         "/api/pre-trade-risk/order-intents/{intentId}/evaluations/latest-price-band",
@@ -199,7 +186,10 @@ class PreTradeRiskOrderIntentControllerTest {
     @Test
     void returnsNotFoundWhenOrderIntentDoesNotExist() throws Exception {
         UUID intentId = UUID.fromString("00000000-0000-0000-0000-000000029002");
-        when(orderIntentQueryService.getByIntentId(intentId))
+        when(preTradeRiskOrderIntentService.evaluate(
+                org.mockito.ArgumentMatchers.eq(intentId),
+                org.mockito.ArgumentMatchers.any(PreTradeRiskCheckContext.class)
+        ))
                 .thenThrow(new OrderIntentNotFoundException("order intent not found"));
 
         mockMvc.perform(post("/api/pre-trade-risk/order-intents/{intentId}/evaluations", intentId))
@@ -210,11 +200,9 @@ class PreTradeRiskOrderIntentControllerTest {
     @Test
     void returnsConflictWhenIntentCannotTransition() throws Exception {
         UUID intentId = UUID.fromString("00000000-0000-0000-0000-000000029003");
-        OrderIntent approvedIntent = orderIntent(intentId, OrderIntentStatus.RISK_APPROVED);
 
-        when(orderIntentQueryService.getByIntentId(intentId)).thenReturn(approvedIntent);
         when(preTradeRiskOrderIntentService.evaluate(
-                org.mockito.ArgumentMatchers.eq(approvedIntent),
+                org.mockito.ArgumentMatchers.eq(intentId),
                 org.mockito.ArgumentMatchers.any(PreTradeRiskCheckContext.class)
         )).thenThrow(new PreTradeRiskTransitionException(
                 "only CREATED order intents can be evaluated by pre-trade risk"
