@@ -2,6 +2,35 @@
 
 프로젝트 slice 작업 이력을 한곳에 모아 기록한다.
 
+## execution
+
+### 2026.06.20 slice
+
+pre-trade risk의 duplicate open order context를 채우기 위한 execution 조회 API를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `GET /api/orders/duplicate-open-order` 추가
+  - `portfolioId`, `instrumentId`, `side`, `orderType`, `quantity`, `limitPrice`, `timeInForce` 기준으로 같은 open order 조회
+  - `excludeIntentId`를 받으면 해당 intent에서 생성된 order는 후보에서 제외
+- `DuplicateOpenOrderQueryService` 추가
+  - open 상태: `CREATED`, `SENT`, `ACKED`, `PARTIALLY_FILLED`, `CANCEL_REQUESTED`
+  - closed 상태: `FILLED`, `CANCELED`, `REJECTED`
+- `DuplicateOpenOrderResult` 추가
+  - `duplicateOpenOrderExists`, `duplicateOpenOrderId`, `duplicateOpenOrder` 응답
+- service/controller 테스트 추가
+- `docs/execution-api.md`, `docs/pre-trade-risk-api.md`, `docs/restful-api-strategy.md` 갱신
+
+#### 메모
+
+- pre-trade risk의 `DuplicateOpenOrderRule`은 context를 평가하는 규칙이고, 이번 API는 그 context를 만들기 위한 execution 조회 경계다.
+- 같은 payload지만 다른 `idempotencyKey`로 생성된 주문 의심 케이스는 이 조회 결과를 risk evaluation request의 `duplicateOpenOrderExists`, `duplicateOpenOrderId`로 넘기면 된다.
+- `CANCEL_REQUESTED`는 아직 취소 확정 전이므로 중복 주문 방지 관점에서는 open order로 본다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+
 ## pre-trade-risk
 
 ### 2026.06.19 slice
