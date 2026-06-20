@@ -302,6 +302,8 @@ controller에서 피할 일:
 
 - 주문 상태 전이 규칙을 직접 구현한다.
 - repository를 직접 호출한다.
+- query service로 domain을 먼저 조회한 뒤 다른 application service에 넘기는 use case 조립을 수행한다.
+  - 이런 흐름은 application service가 `id`를 받아 내부에서 조회하도록 둔다.
 - 복잡한 계산을 수행한다.
 - 모듈 밖 domain을 과하게 조합한다.
 

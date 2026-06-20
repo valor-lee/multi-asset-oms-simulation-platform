@@ -4,6 +4,33 @@
 
 ## pre-trade-risk
 
+### 2026.06.21 slice
+
+pre-trade risk controller를 얇게 유지하도록 intent 조회 책임을 application service로 이동.
+
+#### 이번 슬라이스에서 한 일
+
+- `PreTradeRiskOrderIntentController`에서 `OrderIntentQueryService` 의존성 제거
+  - controller는 path variable과 request body를 받아 service use case만 호출
+  - intent 조회, 상태 검증, context 병합, 상태 전이는 service가 담당
+- `PreTradeRiskOrderIntentService`에 `intentId` 기반 평가 메서드 추가
+  - `evaluate(UUID, PreTradeRiskCheckContext)`
+  - `evaluateWithLatestPriceBand(UUID, PreTradeRiskCheckContext, BigDecimal)`
+  - `evaluateWithLatestPriceBandAndDuplicateOpenOrder(UUID, PreTradeRiskCheckContext, BigDecimal)`
+- controller/service 테스트를 새 책임 분리에 맞게 갱신
+- `docs/restful-api-strategy.md`의 controller 작성 기준 보강
+
+#### 메모
+
+- controller가 query service로 domain을 먼저 조회한 뒤 use case service에 넘기면 HTTP 계층이 application flow를 너무 많이 알게 된다.
+- service가 `intentId`를 받아 내부에서 조회하면 HTTP, batch, scheduler 같은 다른 진입점도 같은 use case를 재사용하기 쉽다.
+- 전체 컨트롤러를 훑었을 때 이번 패턴이 두드러진 곳은 pre-trade risk controller였고, 다른 모듈의 controller는 대부분 이미 service 위임 형태를 유지하고 있다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :pre-trade-risk:test`
+- 전체 빌드: `./gradlew build`
+
 ### 2026.06.20 slice
 
 market-data latest price와 execution duplicate open order 조회를 함께 사용해 risk context를 자동 구성하는 API를 추가.
