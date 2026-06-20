@@ -52,4 +52,17 @@ public class PreTradeRiskOrderIntentController {
                 request.requirePriceBandRate()
         );
     }
+
+    @PostMapping("/{intentId}/evaluations/latest-price-band/duplicate-open-order")
+    public PreTradeRiskOrderIntentResult evaluateWithLatestPriceBandAndDuplicateOpenOrder(
+            @PathVariable("intentId") UUID intentId,
+            @RequestBody PreTradeRiskLatestPriceBandDuplicateEvaluationRequest request
+    ) {
+        OrderIntent intent = orderIntentQueryService.getByIntentId(intentId);
+        return preTradeRiskOrderIntentService.evaluateWithLatestPriceBandAndDuplicateOpenOrder(
+                intent,
+                request.toBaseCheckContext(),
+                request.requirePriceBandRate()
+        );
+    }
 }

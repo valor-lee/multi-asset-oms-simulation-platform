@@ -5,6 +5,7 @@ plugins {
 dependencies {
     api(project(":market-data"))
     api(project(":intent-generation"))
+    api(project(":execution"))
     api("org.springframework:spring-context")
     implementation("org.springframework:spring-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")

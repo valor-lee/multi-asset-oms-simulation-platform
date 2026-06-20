@@ -1,5 +1,7 @@
 package com.multiassetoms.pretraderisk.application;
 
+import com.multiassetoms.execution.application.DuplicateOpenOrderQueryService;
+import com.multiassetoms.execution.application.DuplicateOpenOrderResult;
 import com.multiassetoms.marketdata.application.MarketPriceService;
 import com.multiassetoms.marketdata.model.MarketPrice;
 import com.multiassetoms.intentgeneration.application.OrderIntentRepository;
@@ -10,6 +12,7 @@ import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskCheckResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskMarketContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskDecision;
+import com.multiassetoms.pretraderisk.model.PreTradeRiskOpenOrderContext;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskOrderIntentResult;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskRequestException;
 import com.multiassetoms.pretraderisk.model.PreTradeRiskTransitionException;
@@ -23,15 +26,18 @@ public class PreTradeRiskOrderIntentService {
     private final PreTradeRiskCheckService riskCheckService;
     private final OrderIntentRepository orderIntentRepository;
     private final MarketPriceService marketPriceService;
+    private final DuplicateOpenOrderQueryService duplicateOpenOrderQueryService;
 
     public PreTradeRiskOrderIntentService(
             PreTradeRiskCheckService riskCheckService,
             OrderIntentRepository orderIntentRepository,
-            MarketPriceService marketPriceService
+            MarketPriceService marketPriceService,
+            DuplicateOpenOrderQueryService duplicateOpenOrderQueryService
     ) {
         this.riskCheckService = riskCheckService;
         this.orderIntentRepository = orderIntentRepository;
         this.marketPriceService = marketPriceService;
+        this.duplicateOpenOrderQueryService = duplicateOpenOrderQueryService;
     }
 
     /**
@@ -91,6 +97,48 @@ public class PreTradeRiskOrderIntentService {
         return evaluate(intent, mergedContext);
     }
 
+    /**
+     * market-data의 최신 가격과 execution의 open order 조회 결과를 risk context에 합쳐 평가한다.
+     * 호출자는 limit/exposure/control 값만 넘기고, 가격 밴드와 중복 주문 여부는 서버가 조회한다.
+     *
+     * @param intent pre-trade risk 평가 대상 order intent. CREATED 상태만 허용한다.
+     * @param baseContext limit, exposure, control context
+     * @param priceBandRate latest price 기준 허용 가격 비율
+     * @return risk 평가 결과와 저장된 다음 상태 order intent
+     */
+    public PreTradeRiskOrderIntentResult evaluateWithLatestPriceBandAndDuplicateOpenOrder(
+            OrderIntent intent,
+            PreTradeRiskCheckContext baseContext,
+            BigDecimal priceBandRate
+    ) {
+        validateCreated(intent);
+        validatePriceBandRate(priceBandRate);
+        MarketPrice latestPrice = marketPriceService.latestPrice(intent.instrumentId());
+        DuplicateOpenOrderResult duplicateOpenOrder = duplicateOpenOrderQueryService.findDuplicateOpenOrder(
+                intent.portfolioId(),
+                intent.instrumentId(),
+                intent.side(),
+                intent.orderType(),
+                intent.requestedQty(),
+                intent.limitPrice(),
+                intent.timeInForce(),
+                intent.intentId()
+        );
+
+        PreTradeRiskCheckContext marketContext = withMarketContext(
+                baseContext,
+                priceBandContext(latestPrice.price(), priceBandRate)
+        );
+        PreTradeRiskCheckContext mergedContext = withOpenOrderContext(
+                marketContext,
+                new PreTradeRiskOpenOrderContext(
+                        duplicateOpenOrder.duplicateOpenOrderExists(),
+                        duplicateOpenOrder.duplicateOpenOrderId()
+                )
+        );
+        return evaluate(intent, mergedContext);
+    }
+
     private void validatePriceBandRate(BigDecimal priceBandRate) {
         if (priceBandRate == null) {
             throw new PreTradeRiskRequestException("priceBandRate is required");
@@ -122,6 +170,22 @@ public class PreTradeRiskOrderIntentService {
                 safeBaseContext.exposureContext(),
                 safeBaseContext.openOrderContext(),
                 marketContext,
+                safeBaseContext.controlContext()
+        );
+    }
+
+    private PreTradeRiskCheckContext withOpenOrderContext(
+            PreTradeRiskCheckContext baseContext,
+            PreTradeRiskOpenOrderContext openOrderContext
+    ) {
+        PreTradeRiskCheckContext safeBaseContext = baseContext == null
+                ? PreTradeRiskCheckContext.empty()
+                : baseContext;
+        return new PreTradeRiskCheckContext(
+                safeBaseContext.limitContext(),
+                safeBaseContext.exposureContext(),
+                openOrderContext,
+                safeBaseContext.marketContext(),
                 safeBaseContext.controlContext()
         );
     }
