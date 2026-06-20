@@ -378,6 +378,7 @@ API 문서에는 최소한 다음을 포함한다.
 | `market-data` | `GET /api/market-data/instruments/{instrumentId}/prices/latest` | instrument 최신 시장 가격 조회 |
 | `pre-trade-risk` | `POST /api/pre-trade-risk/order-intents/{intentId}/evaluations` | 주문 의도 사전 리스크 평가 |
 | `pre-trade-risk` | `POST /api/pre-trade-risk/order-intents/{intentId}/evaluations/latest-price-band` | latest market price 기준 사전 리스크 평가 |
+| `pre-trade-risk` | `POST /api/pre-trade-risk/order-intents/{intentId}/evaluations/latest-price-band/duplicate-open-order` | latest price와 open order 조회 기반 사전 리스크 평가 |
 | `execution` | `POST /api/order-intents/{intentId}/orders` | risk 승인 주문 의도를 order로 변환 |
 | `execution` | `GET /api/orders/duplicate-open-order` | pre-trade duplicate context용 open order 조회 |
 | `execution` | `POST /api/orders/{orderId}/submissions` | 생성된 order 제출 처리 |

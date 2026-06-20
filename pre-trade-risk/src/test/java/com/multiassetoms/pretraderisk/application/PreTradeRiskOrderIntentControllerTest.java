@@ -138,6 +138,49 @@ class PreTradeRiskOrderIntentControllerTest {
     }
 
     @Test
+    void evaluatesOrderIntentWithLatestPriceBandAndDuplicateOpenOrder() throws Exception {
+        UUID intentId = UUID.fromString("00000000-0000-0000-0000-000000029006");
+        OrderIntent createdIntent = orderIntent(intentId, OrderIntentStatus.CREATED);
+        OrderIntent rejectedIntent = orderIntent(intentId, OrderIntentStatus.RISK_REJECTED);
+        PreTradeRiskLatestPriceBandDuplicateEvaluationRequest request =
+                new PreTradeRiskLatestPriceBandDuplicateEvaluationRequest(
+                        new BigDecimal("10"),
+                        new BigDecimal("550000"),
+                        new BigDecimal("100"),
+                        new BigDecimal("90"),
+                        false,
+                        new BigDecimal("0.10")
+                );
+
+        when(orderIntentQueryService.getByIntentId(intentId)).thenReturn(createdIntent);
+        when(preTradeRiskOrderIntentService.evaluateWithLatestPriceBandAndDuplicateOpenOrder(
+                org.mockito.ArgumentMatchers.eq(createdIntent),
+                org.mockito.ArgumentMatchers.any(PreTradeRiskCheckContext.class),
+                org.mockito.ArgumentMatchers.eq(new BigDecimal("0.10"))
+        )).thenReturn(result(rejectedIntent, PreTradeRiskDecision.REJECTED, "duplicate open order exists"));
+
+        mockMvc.perform(post(
+                        "/api/pre-trade-risk/order-intents/{intentId}/evaluations/latest-price-band/duplicate-open-order",
+                        intentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.intent.intentId").value(intentId.toString()))
+                .andExpect(jsonPath("$.intent.status").value("RISK_REJECTED"))
+                .andExpect(jsonPath("$.riskCheckResult.decision").value("REJECTED"))
+                .andExpect(jsonPath("$.riskCheckResult.reason").value("duplicate open order exists"));
+
+        ArgumentCaptor<PreTradeRiskCheckContext> contextCaptor =
+                ArgumentCaptor.forClass(PreTradeRiskCheckContext.class);
+        verify(preTradeRiskOrderIntentService).evaluateWithLatestPriceBandAndDuplicateOpenOrder(
+                org.mockito.ArgumentMatchers.eq(createdIntent),
+                contextCaptor.capture(),
+                org.mockito.ArgumentMatchers.eq(new BigDecimal("0.10"))
+        );
+        assertEquals(new BigDecimal("10"), contextCaptor.getValue().limitContext().maxOrderQty());
+    }
+
+    @Test
     void returnsBadRequestWhenPriceBandRateIsMissing() throws Exception {
         UUID intentId = UUID.fromString("00000000-0000-0000-0000-000000029005");
         OrderIntent createdIntent = orderIntent(intentId, OrderIntentStatus.CREATED);

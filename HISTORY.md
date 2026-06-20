@@ -2,6 +2,38 @@
 
 프로젝트 slice 작업 이력을 한곳에 모아 기록한다.
 
+## pre-trade-risk
+
+### 2026.06.20 slice
+
+market-data latest price와 execution duplicate open order 조회를 함께 사용해 risk context를 자동 구성하는 API를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/pre-trade-risk/order-intents/{intentId}/evaluations/latest-price-band/duplicate-open-order` 추가
+  - `priceBandRate`로 latest price 기준 price band context 구성
+  - 평가 대상 `OrderIntent`의 portfolio/instrument/side/orderType/quantity/limitPrice/timeInForce로 duplicate open order 조회
+  - 현재 평가 중인 intent id는 duplicate 후보에서 제외
+- `PreTradeRiskLatestPriceBandDuplicateEvaluationRequest` 추가
+  - limit, exposure, control context와 `priceBandRate`만 요청으로 받음
+  - duplicate open order 여부는 서버 내부 조회 결과로 채움
+- `PreTradeRiskOrderIntentService.evaluateWithLatestPriceBandAndDuplicateOpenOrder()` 추가
+- `pre-trade-risk` 모듈에서 `execution` duplicate query service를 사용할 수 있도록 의존성 추가
+- service/controller 테스트 추가
+- `docs/pre-trade-risk-api.md`, `docs/restful-api-strategy.md` 갱신
+
+#### 메모
+
+- 기본 risk evaluation API는 호출자가 모든 context를 직접 넘기는 시뮬레이션/오케스트레이션 경계로 유지한다.
+- latest price band API는 price context만 서버가 만들고, duplicate context는 호출자가 넘기는 중간 단계다.
+- 이번 API는 price context와 duplicate open order context를 모두 서버 내부에서 조회해 구성하므로 MVP 주문 흐름에 더 가깝다.
+- 같은 payload지만 다른 `idempotencyKey`로 생성된 주문 의심 케이스는 idempotency가 아니라 duplicate open order rule에서 거절한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :pre-trade-risk:test`
+- 전체 빌드: `./gradlew build`
+
 ## execution
 
 ### 2026.06.20 slice

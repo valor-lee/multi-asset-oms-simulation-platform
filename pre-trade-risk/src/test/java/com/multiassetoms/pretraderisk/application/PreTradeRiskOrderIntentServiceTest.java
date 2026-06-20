@@ -1,5 +1,9 @@
 package com.multiassetoms.pretraderisk.application;
 
+import com.multiassetoms.execution.application.DuplicateOpenOrderQueryService;
+import com.multiassetoms.execution.infrastructure.InMemoryOrderRepository;
+import com.multiassetoms.execution.model.Order;
+import com.multiassetoms.execution.model.OrderStatus;
 import com.multiassetoms.marketdata.application.MarketPriceService;
 import com.multiassetoms.marketdata.infrastructure.InMemoryMarketPriceRepository;
 import com.multiassetoms.marketdata.model.MarketPriceNotFoundException;
@@ -34,14 +38,18 @@ class PreTradeRiskOrderIntentServiceTest {
     private final PreTradeRiskCheckService riskCheckService = new PreTradeRiskCheckService(fixedClock);
     private final InMemoryOrderIntentRepository orderIntentRepository = new InMemoryOrderIntentRepository();
     private final InMemoryMarketPriceRepository marketPriceRepository = new InMemoryMarketPriceRepository();
+    private final InMemoryOrderRepository orderRepository = new InMemoryOrderRepository();
     private final MarketPriceService marketPriceService = new MarketPriceService(
             marketPriceRepository,
             fixedClock
     );
+    private final DuplicateOpenOrderQueryService duplicateOpenOrderQueryService =
+            new DuplicateOpenOrderQueryService(orderRepository);
     private final PreTradeRiskOrderIntentService service = new PreTradeRiskOrderIntentService(
             riskCheckService,
             orderIntentRepository,
-            marketPriceService
+            marketPriceService,
+            duplicateOpenOrderQueryService
     );
 
     @Test
@@ -195,6 +203,76 @@ class PreTradeRiskOrderIntentServiceTest {
         assertEquals("market price not found", exception.getMessage());
     }
 
+    @Test
+    void rejectsWhenDuplicateOpenOrderExistsDuringLatestPriceBandEvaluation() {
+        OrderIntent intent = createdIntent(
+                UUID.fromString("00000000-0000-0000-0000-000000000107"),
+                new BigDecimal("10"),
+                new BigDecimal("55000"),
+                OrderIntentStatus.CREATED
+        );
+        UUID duplicateOrderId = UUID.fromString("00000000-0000-0000-0000-000000000207");
+        orderRepository.save(openOrder(
+                duplicateOrderId,
+                UUID.fromString("00000000-0000-0000-0000-000000000307")
+        ));
+        marketPriceService.upsertLatestPrice(
+                "005930",
+                new BigDecimal("55000"),
+                Instant.parse("2026-05-09T08:59:00Z")
+        );
+
+        PreTradeRiskOrderIntentResult result = service.evaluateWithLatestPriceBandAndDuplicateOpenOrder(
+                intent,
+                PreTradeRiskCheckContext.empty(),
+                new BigDecimal("0.10")
+        );
+
+        assertEquals(OrderIntentStatus.RISK_REJECTED, result.intent().status());
+        assertEquals(PreTradeRiskDecision.REJECTED, result.riskCheckResult().decision());
+        assertEquals("duplicate open order exists", result.riskCheckResult().reason());
+        assertEquals(
+                duplicateOrderId.toString(),
+                result.riskCheckResult().ruleResults().stream()
+                        .filter(ruleResult -> ruleResult.ruleCode() == PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER)
+                        .findFirst()
+                        .orElseThrow()
+                        .evaluatedValue()
+        );
+    }
+
+    @Test
+    void approvesWhenNoDuplicateOpenOrderExistsDuringLatestPriceBandEvaluation() {
+        OrderIntent intent = createdIntent(
+                UUID.fromString("00000000-0000-0000-0000-000000000108"),
+                new BigDecimal("10"),
+                new BigDecimal("55000"),
+                OrderIntentStatus.CREATED
+        );
+        marketPriceService.upsertLatestPrice(
+                "005930",
+                new BigDecimal("55000"),
+                Instant.parse("2026-05-09T08:59:00Z")
+        );
+
+        PreTradeRiskOrderIntentResult result = service.evaluateWithLatestPriceBandAndDuplicateOpenOrder(
+                intent,
+                PreTradeRiskCheckContext.empty(),
+                new BigDecimal("0.10")
+        );
+
+        assertEquals(OrderIntentStatus.RISK_APPROVED, result.intent().status());
+        assertEquals(PreTradeRiskDecision.APPROVED, result.riskCheckResult().decision());
+        assertEquals(
+                PreTradeRiskRuleStatus.PASSED,
+                result.riskCheckResult().ruleResults().stream()
+                        .filter(ruleResult -> ruleResult.ruleCode() == PreTradeRiskRuleCode.DUPLICATE_OPEN_ORDER)
+                        .findFirst()
+                        .orElseThrow()
+                        .status()
+        );
+    }
+
     private OrderIntent createdIntent(
             UUID intentId,
             BigDecimal requestedQty,
@@ -217,6 +295,25 @@ class PreTradeRiskOrderIntentServiceTest {
                 status,
                 "intent-key",
                 "operator",
+                createdAt,
+                createdAt
+        );
+    }
+
+    private Order openOrder(UUID orderId, UUID intentId) {
+        Instant createdAt = Instant.parse("2026-05-08T01:00:00Z");
+        return new Order(
+                orderId,
+                intentId,
+                "portfolio-1",
+                "005930",
+                OrderSide.BUY,
+                OrderType.LIMIT,
+                new BigDecimal("10"),
+                BigDecimal.ZERO,
+                new BigDecimal("55000"),
+                TimeInForce.DAY,
+                OrderStatus.ACKED,
                 createdAt,
                 createdAt
         );
