@@ -6,6 +6,35 @@
 
 ### 2026.06.21 slice
 
+realized/unrealized PnL이 current average cost를 서버 내부에서 조회해 계산할 수 있도록 연결.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/post-trade/trades/{tradeId}/realized-pnl-postings/current-average-cost` 추가
+  - request body 없이 trade 기준 current average cost를 조회해 realized PnL posting
+  - 해당 SELL trade가 이미 average cost 원장에 posting된 경우 `AverageCostEntry.costDelta`에서 매도 직전 평균단가 복원
+- `GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl/latest/current-average-cost` 추가
+  - current position, current average cost, market-data latest price를 모두 서버 내부에서 조회
+- `AverageCostService.averageCostForRealizedPnl()` 추가
+- `RealizedPnlService.postWithCurrentAverageCost()` 추가
+- `UnrealizedPnlService.snapshotWithCurrentAverageCostAndLatestMarketPrice()` 추가
+- service/controller 테스트 추가
+- `docs/post-trade-api.md`, `docs/order-lifecycle-flow.md`, `docs/restful-api-strategy.md` 갱신
+
+#### 메모
+
+- `averageCost`를 요청값으로 받는 기존 PnL API는 테스트/시뮬레이션 경계로 유지한다.
+- 새 current average cost 기반 API는 평균단가 원장과 market-data를 내부 조회하므로 운영 흐름에 더 가깝다.
+- 전량 매도 후 average cost posting이 먼저 수행되면 current average cost는 0이 된다.
+  - 이 경우 realized PnL은 해당 SELL trade의 `AverageCostEntry.costDelta`를 사용해 매도 직전 평균단가를 복원한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+- 전체 빌드: `./gradlew build`
+
+### 2026.06.21 slice
+
 MVP 후처리 항목의 평균단가 계산을 위해 settled trade 기반 average cost 원장과 조회 API를 추가.
 
 #### 이번 슬라이스에서 한 일

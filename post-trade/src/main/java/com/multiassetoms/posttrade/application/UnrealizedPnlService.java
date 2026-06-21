@@ -2,6 +2,7 @@ package com.multiassetoms.posttrade.application;
 
 import com.multiassetoms.marketdata.application.MarketPriceService;
 import com.multiassetoms.marketdata.model.MarketPrice;
+import com.multiassetoms.posttrade.model.CurrentAverageCost;
 import com.multiassetoms.posttrade.model.UnrealizedPnlException;
 import com.multiassetoms.posttrade.model.UnrealizedPnlSnapshot;
 import org.springframework.stereotype.Service;
@@ -15,15 +16,18 @@ public class UnrealizedPnlService {
 
     private final PositionLedgerService positionLedgerService;
     private final MarketPriceService marketPriceService;
+    private final AverageCostService averageCostService;
     private final Clock clock;
 
     public UnrealizedPnlService(
             PositionLedgerService positionLedgerService,
             MarketPriceService marketPriceService,
+            AverageCostService averageCostService,
             Clock clock
     ) {
         this.positionLedgerService = positionLedgerService;
         this.marketPriceService = marketPriceService;
+        this.averageCostService = averageCostService;
         this.clock = clock;
     }
 
@@ -80,6 +84,19 @@ public class UnrealizedPnlService {
         return snapshot(portfolioId, instrumentId, averageCost, latestPrice.price());
     }
 
+    /**
+     * average cost와 market-data latest price를 모두 내부 조회해 평가손익 snapshot을 계산한다.
+     */
+    public UnrealizedPnlSnapshot snapshotWithCurrentAverageCostAndLatestMarketPrice(
+            String portfolioId,
+            String instrumentId
+    ) {
+        validatePortfolioAndInstrument(portfolioId, instrumentId);
+        CurrentAverageCost currentAverageCost = averageCostService.currentAverageCost(portfolioId, instrumentId);
+        MarketPrice latestPrice = marketPriceService.latestPrice(instrumentId);
+        return snapshot(portfolioId, instrumentId, currentAverageCost.averageCost(), latestPrice.price());
+    }
+
     private void validateInputs(
             String portfolioId,
             String instrumentId,
@@ -97,6 +114,15 @@ public class UnrealizedPnlService {
         }
         if (marketPrice == null || marketPrice.compareTo(BigDecimal.ZERO) < 0) {
             throw new UnrealizedPnlException("marketPrice must be zero or greater");
+        }
+    }
+
+    private void validatePortfolioAndInstrument(String portfolioId, String instrumentId) {
+        if (portfolioId == null || portfolioId.isBlank()) {
+            throw new UnrealizedPnlException("portfolioId is required");
+        }
+        if (instrumentId == null || instrumentId.isBlank()) {
+            throw new UnrealizedPnlException("instrumentId is required");
         }
     }
 

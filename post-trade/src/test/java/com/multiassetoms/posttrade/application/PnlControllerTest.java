@@ -65,6 +65,22 @@ class PnlControllerTest {
     }
 
     @Test
+    void postsRealizedPnlWithCurrentAverageCost() throws Exception {
+        UUID tradeId = UUID.fromString("00000000-0000-0000-0000-000000052005");
+        RealizedPnlEntry entry = realizedPnlEntry(tradeId);
+
+        when(realizedPnlService.postWithCurrentAverageCost(tradeId)).thenReturn(entry);
+
+        mockMvc.perform(post(
+                        "/api/post-trade/trades/{tradeId}/realized-pnl-postings/current-average-cost",
+                        tradeId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tradeId").value(tradeId.toString()))
+                .andExpect(jsonPath("$.portfolioId").value("portfolio-1"))
+                .andExpect(jsonPath("$.realizedPnl").value(9870));
+    }
+
+    @Test
     void rejectsMissingAverageCost() throws Exception {
         UUID tradeId = UUID.fromString("00000000-0000-0000-0000-000000052002");
 
@@ -182,6 +198,37 @@ class PnlControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.portfolioId").value("portfolio-1"))
                 .andExpect(jsonPath("$.instrumentId").value("005930"))
+                .andExpect(jsonPath("$.marketPrice").value(55000))
+                .andExpect(jsonPath("$.unrealizedPnl").value(10000));
+    }
+
+    @Test
+    void getsUnrealizedPnlSnapshotWithCurrentAverageCostAndLatestMarketPrice() throws Exception {
+        UnrealizedPnlSnapshot snapshot = new UnrealizedPnlSnapshot(
+                "portfolio-1",
+                "005930",
+                new BigDecimal("10"),
+                new BigDecimal("54000"),
+                new BigDecimal("55000"),
+                new BigDecimal("540000"),
+                new BigDecimal("550000"),
+                new BigDecimal("10000"),
+                Instant.parse("2026-06-07T00:00:00Z")
+        );
+
+        when(unrealizedPnlService.snapshotWithCurrentAverageCostAndLatestMarketPrice(
+                "portfolio-1",
+                "005930"
+        )).thenReturn(snapshot);
+
+        mockMvc.perform(get(
+                        "/api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl/latest/current-average-cost",
+                        "portfolio-1",
+                        "005930"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.portfolioId").value("portfolio-1"))
+                .andExpect(jsonPath("$.instrumentId").value("005930"))
+                .andExpect(jsonPath("$.averageCost").value(54000))
                 .andExpect(jsonPath("$.marketPrice").value(55000))
                 .andExpect(jsonPath("$.unrealizedPnl").value(10000));
     }

@@ -65,6 +65,21 @@ public class AverageCostService {
         return averageCostRepository.currentAverageCost(new PositionKey(portfolioId, instrumentId));
     }
 
+    /**
+     * realized PnL 계산에 사용할 평균단가를 반환한다.
+     * 이미 해당 SELL trade가 average cost 원장에 posting됐다면 entry의 costDelta에서
+     * 매도 직전 평균단가를 복원하고, 아직 posting 전이면 현재 평균단가를 사용한다.
+     */
+    public BigDecimal averageCostForRealizedPnl(Trade trade) {
+        return averageCostRepository.findByTradeId(trade.tradeId())
+                .map(entry -> entry.costDelta().abs()
+                        .divide(entry.quantity(), COST_SCALE, RoundingMode.HALF_UP))
+                .orElseGet(() -> currentAverageCost(
+                        trade.portfolioId(),
+                        trade.instrumentId()
+                ).averageCost());
+    }
+
     private void validatePostable(Trade trade) {
         if (trade.status() != TradeStatus.SETTLED) {
             throw new AverageCostException("only SETTLED trades can be posted to average cost");

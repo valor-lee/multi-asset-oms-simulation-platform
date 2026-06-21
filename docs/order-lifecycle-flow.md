@@ -102,9 +102,7 @@ flowchart TD
 
 ## PnL 연결
 
-현재 PnL API는 아직 `averageCost`를 요청값으로 받는다.
-
-다음 단계에서는 아래처럼 서버 내부 조회로 바꿀 수 있다.
+PnL API는 수동 입력 경계와 서버 내부 조회 경계를 함께 제공한다.
 
 ![PnL Average Cost Flow](diagrams/pnl-average-cost-flow.svg)
 
@@ -115,14 +113,14 @@ flowchart LR
     D[Market Data Latest Price] --> C
 ```
 
-예상 연결 방향:
+현재 연결 방향:
 
 - realized PnL posting
-  - 현재: request body의 `averageCost` 사용
-  - 다음: `AverageCostService.currentAverageCost()` 조회값 사용
+  - 시뮬레이션 API: request body의 `averageCost` 사용
+  - 운영형 API: `AverageCostService.averageCostForRealizedPnl()` 조회값 사용
 - unrealized PnL latest snapshot
-  - 현재: query parameter의 `averageCost`와 market-data latest price 사용
-  - 다음: average cost와 market-data latest price를 모두 서버 내부에서 조회
+  - 시뮬레이션 API: query parameter의 `averageCost`와 market-data latest price 사용
+  - 운영형 API: average cost와 market-data latest price를 모두 서버 내부에서 조회
 
 ## 문서 위치 기준
 
