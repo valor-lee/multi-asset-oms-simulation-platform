@@ -6,6 +6,8 @@
 
 ## 전체 MVP 흐름
 
+![Order Lifecycle Flow](diagrams/order-lifecycle-flow.svg)
+
 ```mermaid
 flowchart TD
     A[Client / Strategy / Rebalancing] --> B[OrderIntent 생성]
@@ -63,6 +65,8 @@ flowchart TD
 
 평균단가는 post-trade에서 settled trade를 기준으로 별도 원장에 반영한다.
 
+![Average Cost Flow](diagrams/average-cost-flow.svg)
+
 ```mermaid
 flowchart TD
     A[Trade SETTLED] --> B{side}
@@ -101,6 +105,8 @@ flowchart TD
 현재 PnL API는 아직 `averageCost`를 요청값으로 받는다.
 
 다음 단계에서는 아래처럼 서버 내부 조회로 바꿀 수 있다.
+
+![PnL Average Cost Flow](diagrams/pnl-average-cost-flow.svg)
 
 ```mermaid
 flowchart LR

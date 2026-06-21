@@ -1,0 +1,20 @@
+flowchart TD
+    A[Trade SETTLED] --> B{side}
+
+    B -->|BUY| C[매수 원가 계산]
+    C --> C1[costDelta = grossNotional + feeAmount + taxAmount]
+    C1 --> D[기존 quantity / costBasis에 더함]
+
+    B -->|SELL| E[매도 원가 차감]
+    E --> E1[현재 averageCost 조회]
+    E1 --> E2[costDelta = quantity * averageCost * -1]
+    E2 --> D
+
+    D --> F[nextQuantity 계산]
+    F --> G{nextQuantity == 0}
+    G -->|yes| H[costBasis = 0, averageCost = 0]
+    G -->|no| I[averageCost = costBasis / quantity]
+
+    H --> J[AverageCostEntry 저장]
+    I --> J
+    J --> K[Current Average Cost Snapshot 갱신]

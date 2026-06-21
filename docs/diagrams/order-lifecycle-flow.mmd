@@ -1,0 +1,35 @@
+flowchart TD
+    A[Client / Strategy / Rebalancing] --> B[OrderIntent 생성]
+    B --> C[Pre-Trade Risk 평가]
+    C -->|APPROVED| D[Order 변환]
+    C -->|REJECTED| C1[OrderIntent RISK_REJECTED]
+
+    D --> E[Order Submission]
+    E --> F[Broker / Exchange ACK]
+    F --> G[Fill 반영]
+    F --> H[Reject 반영]
+    F --> I[Cancel Request / Confirmation]
+
+    G --> J[Trade Capture]
+    I -->|filledQuantity > 0| J
+
+    J --> K[Settlement Schedule]
+    K --> L[Settlement Confirmation]
+    L --> M[Post-Settlement Ledger Posting]
+
+    M --> N[Position Ledger]
+    M --> O[Cash Ledger]
+    L --> P[Average Cost Posting]
+
+    N --> Q[Current Position 조회]
+    O --> R[Current Cash 조회]
+    P --> S[Current Average Cost 조회]
+
+    S --> T[Realized PnL Posting]
+    S --> U[Unrealized PnL Snapshot]
+    V[Market Data Latest Price] --> U
+
+    G --> W[Audit Trail / Replay]
+    E --> W
+    F --> W
+    I --> W
