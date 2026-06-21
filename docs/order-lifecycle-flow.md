@@ -87,7 +87,7 @@ flowchart TD
 
     H --> J[AverageCostEntry 저장]
     I --> J
-    J --> K[Current Average Cost Snapshot 갱신]
+    J --> K[Current Average Cost 갱신]
 ```
 
 ## 현재 평균단가 정책

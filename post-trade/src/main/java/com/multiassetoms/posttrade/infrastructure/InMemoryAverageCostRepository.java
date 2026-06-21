@@ -2,7 +2,7 @@ package com.multiassetoms.posttrade.infrastructure;
 
 import com.multiassetoms.posttrade.application.port.AverageCostRepository;
 import com.multiassetoms.posttrade.model.AverageCostEntry;
-import com.multiassetoms.posttrade.model.AverageCostSnapshot;
+import com.multiassetoms.posttrade.model.CurrentAverageCost;
 import com.multiassetoms.posttrade.model.PositionKey;
 import org.springframework.stereotype.Repository;
 
@@ -16,15 +16,15 @@ public class InMemoryAverageCostRepository implements AverageCostRepository {
 
     private final Map<UUID, AverageCostEntry> entriesById = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> entryIdsByTradeId = new ConcurrentHashMap<>();
-    private final Map<PositionKey, AverageCostSnapshot> snapshotsByKey = new ConcurrentHashMap<>();
+    private final Map<PositionKey, CurrentAverageCost> currentAverageCostsByKey = new ConcurrentHashMap<>();
 
     @Override
     public AverageCostEntry save(AverageCostEntry entry) {
         entriesById.put(entry.entryId(), entry);
         entryIdsByTradeId.put(entry.tradeId(), entry.entryId());
-        snapshotsByKey.put(
+        currentAverageCostsByKey.put(
                 new PositionKey(entry.portfolioId(), entry.instrumentId()),
-                new AverageCostSnapshot(
+                new CurrentAverageCost(
                         entry.portfolioId(),
                         entry.instrumentId(),
                         entry.positionQuantity(),
@@ -51,10 +51,10 @@ public class InMemoryAverageCostRepository implements AverageCostRepository {
     }
 
     @Override
-    public AverageCostSnapshot currentAverageCost(PositionKey positionKey) {
-        return snapshotsByKey.getOrDefault(
+    public CurrentAverageCost currentAverageCost(PositionKey positionKey) {
+        return currentAverageCostsByKey.getOrDefault(
                 positionKey,
-                AverageCostSnapshot.empty(positionKey.portfolioId(), positionKey.instrumentId())
+                CurrentAverageCost.empty(positionKey.portfolioId(), positionKey.instrumentId())
         );
     }
 }

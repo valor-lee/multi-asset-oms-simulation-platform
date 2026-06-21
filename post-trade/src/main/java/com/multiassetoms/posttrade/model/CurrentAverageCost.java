@@ -3,7 +3,7 @@ package com.multiassetoms.posttrade.model;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-public record AverageCostSnapshot(
+public record CurrentAverageCost(
         String portfolioId,
         String instrumentId,
         BigDecimal quantity,
@@ -12,8 +12,8 @@ public record AverageCostSnapshot(
         Instant updatedAt
 ) {
 
-    public static AverageCostSnapshot empty(String portfolioId, String instrumentId) {
-        return new AverageCostSnapshot(
+    public static CurrentAverageCost empty(String portfolioId, String instrumentId) {
+        return new CurrentAverageCost(
                 portfolioId,
                 instrumentId,
                 BigDecimal.ZERO,

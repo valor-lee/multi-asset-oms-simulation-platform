@@ -1,7 +1,7 @@
 package com.multiassetoms.posttrade.application;
 
 import com.multiassetoms.posttrade.model.AverageCostEntry;
-import com.multiassetoms.posttrade.model.AverageCostSnapshot;
+import com.multiassetoms.posttrade.model.CurrentAverageCost;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,7 +26,7 @@ public class AverageCostController {
     }
 
     @GetMapping("/portfolios/{portfolioId}/positions/{instrumentId}/average-cost")
-    public AverageCostSnapshot currentAverageCost(
+    public CurrentAverageCost currentAverageCost(
             @PathVariable("portfolioId") String portfolioId,
             @PathVariable("instrumentId") String instrumentId
     ) {
