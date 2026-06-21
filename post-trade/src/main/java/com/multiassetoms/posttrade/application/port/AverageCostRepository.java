@@ -1,7 +1,7 @@
 package com.multiassetoms.posttrade.application.port;
 
 import com.multiassetoms.posttrade.model.AverageCostEntry;
-import com.multiassetoms.posttrade.model.AverageCostSnapshot;
+import com.multiassetoms.posttrade.model.CurrentAverageCost;
 import com.multiassetoms.posttrade.model.PositionKey;
 
 import java.util.Optional;
@@ -15,5 +15,5 @@ public interface AverageCostRepository {
 
     Optional<AverageCostEntry> findByTradeId(UUID tradeId);
 
-    AverageCostSnapshot currentAverageCost(PositionKey positionKey);
+    CurrentAverageCost currentAverageCost(PositionKey positionKey);
 }

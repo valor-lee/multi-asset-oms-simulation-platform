@@ -10,8 +10,8 @@ MVP 후처리 항목의 평균단가 계산을 위해 settled trade 기반 avera
 
 #### 이번 슬라이스에서 한 일
 
-- `AverageCostEntry`, `AverageCostSnapshot` 추가
-  - trade별 평균단가 posting 내역과 portfolio/instrument별 현재 평균단가 snapshot 분리
+- `AverageCostEntry`, `CurrentAverageCost` 추가
+  - trade별 평균단가 posting 내역과 portfolio/instrument별 현재 평균단가 상태 분리
 - `AverageCostRepository`, `InMemoryAverageCostRepository` 추가
   - trade id 기준 idempotency 보장
   - portfolio/instrument 기준 현재 quantity, cost basis, average cost 조회

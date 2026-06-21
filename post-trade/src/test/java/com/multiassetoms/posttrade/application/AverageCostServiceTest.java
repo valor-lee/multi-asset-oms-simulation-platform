@@ -5,7 +5,7 @@ import com.multiassetoms.posttrade.infrastructure.InMemoryAverageCostRepository;
 import com.multiassetoms.posttrade.infrastructure.InMemoryTradeRepository;
 import com.multiassetoms.posttrade.model.AverageCostEntry;
 import com.multiassetoms.posttrade.model.AverageCostException;
-import com.multiassetoms.posttrade.model.AverageCostSnapshot;
+import com.multiassetoms.posttrade.model.CurrentAverageCost;
 import com.multiassetoms.posttrade.model.Trade;
 import com.multiassetoms.posttrade.model.TradeStatus;
 import org.junit.jupiter.api.Test;
@@ -232,11 +232,11 @@ class AverageCostServiceTest {
         tradeRepository.save(trade);
         service.post(trade.tradeId());
 
-        AverageCostSnapshot snapshot = service.currentAverageCost("portfolio-1", "005930");
+        CurrentAverageCost currentAverageCost = service.currentAverageCost("portfolio-1", "005930");
 
-        assertEquals(new BigDecimal("10"), snapshot.quantity());
-        assertEquals(new BigDecimal("550000"), snapshot.costBasis());
-        assertEquals(new BigDecimal("55000.0000000000"), snapshot.averageCost());
+        assertEquals(new BigDecimal("10"), currentAverageCost.quantity());
+        assertEquals(new BigDecimal("550000"), currentAverageCost.costBasis());
+        assertEquals(new BigDecimal("55000.0000000000"), currentAverageCost.averageCost());
     }
 
     private Trade trade(

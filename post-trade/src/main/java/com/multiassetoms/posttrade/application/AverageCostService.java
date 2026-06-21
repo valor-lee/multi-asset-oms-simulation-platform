@@ -5,7 +5,7 @@ import com.multiassetoms.posttrade.application.port.AverageCostRepository;
 import com.multiassetoms.posttrade.application.port.TradeRepository;
 import com.multiassetoms.posttrade.model.AverageCostEntry;
 import com.multiassetoms.posttrade.model.AverageCostException;
-import com.multiassetoms.posttrade.model.AverageCostSnapshot;
+import com.multiassetoms.posttrade.model.CurrentAverageCost;
 import com.multiassetoms.posttrade.model.PositionKey;
 import com.multiassetoms.posttrade.model.Trade;
 import com.multiassetoms.posttrade.model.TradeNotFoundException;
@@ -54,14 +54,14 @@ public class AverageCostService {
                 .orElseThrow(() -> new TradeNotFoundException("trade not found"));
 
         validatePostable(trade);
-        AverageCostSnapshot currentSnapshot = currentAverageCost(trade.portfolioId(), trade.instrumentId());
+        CurrentAverageCost currentSnapshot = currentAverageCost(trade.portfolioId(), trade.instrumentId());
         return averageCostRepository.save(toEntry(trade, currentSnapshot, Instant.now(clock)));
     }
 
     /**
      * portfolio/instrument 기준 현재 position quantity, cost basis, average cost를 조회한다.
      */
-    public AverageCostSnapshot currentAverageCost(String portfolioId, String instrumentId) {
+    public CurrentAverageCost currentAverageCost(String portfolioId, String instrumentId) {
         return averageCostRepository.currentAverageCost(new PositionKey(portfolioId, instrumentId));
     }
 
@@ -79,7 +79,7 @@ public class AverageCostService {
 
     private AverageCostEntry toEntry(
             Trade trade,
-            AverageCostSnapshot currentSnapshot,
+            CurrentAverageCost currentSnapshot,
             Instant postedAt
     ) {
         BigDecimal currentQuantity = currentSnapshot.quantity();
@@ -104,7 +104,7 @@ public class AverageCostService {
         );
     }
 
-    private BigDecimal costDelta(Trade trade, AverageCostSnapshot currentSnapshot) {
+    private BigDecimal costDelta(Trade trade, CurrentAverageCost currentSnapshot) {
         if (trade.side() == OrderSide.BUY) {
             BigDecimal feeAmount = trade.feeAmount() == null ? BigDecimal.ZERO : trade.feeAmount();
             BigDecimal taxAmount = trade.taxAmount() == null ? BigDecimal.ZERO : trade.taxAmount();
@@ -114,7 +114,7 @@ public class AverageCostService {
         return trade.quantity().multiply(currentSnapshot.averageCost()).negate();
     }
 
-    private void validateSellQuantity(Trade trade, AverageCostSnapshot currentSnapshot) {
+    private void validateSellQuantity(Trade trade, CurrentAverageCost currentSnapshot) {
         if (currentSnapshot.quantity().compareTo(trade.quantity()) < 0) {
             throw new AverageCostException("sell quantity exceeds current position");
         }

@@ -3,7 +3,7 @@ package com.multiassetoms.posttrade.application;
 import com.multiassetoms.intentgeneration.model.OrderSide;
 import com.multiassetoms.posttrade.model.AverageCostEntry;
 import com.multiassetoms.posttrade.model.AverageCostException;
-import com.multiassetoms.posttrade.model.AverageCostSnapshot;
+import com.multiassetoms.posttrade.model.CurrentAverageCost;
 import com.multiassetoms.posttrade.model.TradeNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +58,7 @@ class AverageCostControllerTest {
     @Test
     void getsCurrentAverageCost() throws Exception {
         when(averageCostService.currentAverageCost("portfolio-1", "005930"))
-                .thenReturn(snapshot());
+                .thenReturn(currentAverageCost());
 
         mockMvc.perform(get(
                         "/api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/average-cost",
@@ -112,8 +112,8 @@ class AverageCostControllerTest {
         );
     }
 
-    private AverageCostSnapshot snapshot() {
-        return new AverageCostSnapshot(
+    private CurrentAverageCost currentAverageCost() {
+        return new CurrentAverageCost(
                 "portfolio-1",
                 "005930",
                 new BigDecimal("10"),
