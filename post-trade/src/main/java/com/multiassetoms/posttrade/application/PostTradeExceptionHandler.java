@@ -2,6 +2,7 @@ package com.multiassetoms.posttrade.application;
 
 import com.multiassetoms.marketdata.model.MarketPriceNotFoundException;
 import com.multiassetoms.execution.model.OrderNotFoundException;
+import com.multiassetoms.posttrade.model.AverageCostException;
 import com.multiassetoms.posttrade.model.PostTradeRequestException;
 import com.multiassetoms.posttrade.model.LedgerPostingException;
 import com.multiassetoms.posttrade.model.RealizedPnlException;
@@ -75,6 +76,12 @@ public class PostTradeExceptionHandler {
     @ExceptionHandler(UnrealizedPnlException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleUnrealizedPnlException(UnrealizedPnlException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(AverageCostException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleAverageCostException(AverageCostException exception) {
         return new ErrorResponse(exception.getMessage());
     }
 

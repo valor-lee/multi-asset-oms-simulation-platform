@@ -2,6 +2,41 @@
 
 프로젝트 slice 작업 이력을 한곳에 모아 기록한다.
 
+## post-trade
+
+### 2026.06.21 slice
+
+MVP 후처리 항목의 평균단가 계산을 위해 settled trade 기반 average cost 원장과 조회 API를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `AverageCostEntry`, `AverageCostSnapshot` 추가
+  - trade별 평균단가 posting 내역과 portfolio/instrument별 현재 평균단가 snapshot 분리
+- `AverageCostRepository`, `InMemoryAverageCostRepository` 추가
+  - trade id 기준 idempotency 보장
+  - portfolio/instrument 기준 현재 quantity, cost basis, average cost 조회
+- `AverageCostService` 추가
+  - `SETTLED` trade만 평균단가 원장 posting 허용
+  - BUY는 `grossNotional + feeAmount + taxAmount`를 cost basis에 더함
+  - SELL은 기존 평균단가 기준으로 매도 수량만큼 cost basis를 줄임
+  - position이 0이 되면 cost basis와 average cost를 0으로 초기화
+- `POST /api/post-trade/trades/{tradeId}/average-cost-postings` 추가
+- `GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/average-cost` 추가
+- service/repository/controller 테스트 추가
+- `docs/post-trade-api.md`, `docs/restful-api-strategy.md` 갱신
+
+#### 메모
+
+- 현재 realized/unrealized PnL API는 아직 `averageCost`를 요청값으로 받는다.
+- 이번 slice는 평균단가를 서버 내부 상태로 계산/조회할 수 있는 기반을 만든 것이다.
+- 다음 단계에서 realized PnL posting과 latest unrealized PnL snapshot이 average cost를 직접 조회하도록 연결할 수 있다.
+- MVP에서는 long position만 지원하며, 보유 수량보다 큰 SELL은 평균단가 원장 posting을 거절한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+- 전체 빌드: `./gradlew build`
+
 ## pre-trade-risk
 
 ### 2026.06.21 slice

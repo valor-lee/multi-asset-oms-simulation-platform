@@ -8,6 +8,8 @@ slice 작업 이력은 [HISTORY.md](HISTORY.md)에 모아 기록합니다.
 
 HTTP API 설계 기준은 [RESTful API Strategy](docs/restful-api-strategy.md)에 정리합니다.
 
+MVP 전체 주문 생명주기 흐름은 [Order Lifecycle Flow](docs/order-lifecycle-flow.md)에 정리합니다.
+
 주문 의도 생성 API는 [Order Intent API Guide](docs/order-intent-api.md)에 정리합니다.
 
 시장 데이터 API는 [Market Data API Guide](docs/market-data-api.md)에 정리합니다.
