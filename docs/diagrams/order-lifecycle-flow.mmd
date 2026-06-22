@@ -15,17 +15,17 @@ flowchart TD
 
     J --> K[Settlement Schedule]
     K --> L[Settlement Confirmation]
-    L --> M[Post-Settlement Ledger Posting]
+    L --> M[Post-Settlement Accounting Posting]
 
     M --> N[Position Ledger]
     M --> O[Cash Ledger]
-    L --> P[Average Cost Posting]
+    M --> P[Average Cost Posting]
+    M --> T[Realized PnL Posting]
 
     N --> Q[Current Position 조회]
     O --> R[Current Cash 조회]
     P --> S[Current Average Cost 조회]
 
-    S --> T[Realized PnL Posting]
     S --> U[Unrealized PnL Snapshot]
     V[Market Data Latest Price] --> U
 

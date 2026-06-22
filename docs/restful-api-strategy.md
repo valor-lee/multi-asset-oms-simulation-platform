@@ -393,6 +393,7 @@ API 문서에는 최소한 다음을 포함한다.
 | `post-trade` | `POST /api/post-trade/trades/{tradeId}/settlements` | trade settlement 예정 등록 |
 | `post-trade` | `POST /api/post-trade/settlements/{settlementId}/confirmations` | settlement 완료 확인 |
 | `post-trade` | `POST /api/post-trade/trades/{tradeId}/ledger-postings` | settled trade를 position/cash ledger에 posting |
+| `post-trade` | `POST /api/post-trade/trades/{tradeId}/accounting-postings` | settled trade를 ledger, average cost, realized PnL 회계 흐름에 posting |
 | `post-trade` | `GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}` | portfolio/instrument 현재 position 조회 |
 | `post-trade` | `GET /api/post-trade/portfolios/{portfolioId}/cash` | portfolio 현재 cash 조회 |
 | `post-trade` | `POST /api/post-trade/trades/{tradeId}/average-cost-postings` | settled trade를 평균단가 원장에 posting |

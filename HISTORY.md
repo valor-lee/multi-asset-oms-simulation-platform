@@ -4,6 +4,37 @@
 
 ## post-trade
 
+### 2026.06.23 slice
+
+settlement가 완료된 trade를 운영 흐름에서 한 번에 회계 반영할 수 있도록 post-settlement accounting workflow를 추가.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/post-trade/trades/{tradeId}/accounting-postings` 추가
+  - `SETTLED` trade를 position/cash ledger에 posting
+  - average cost 원장에 posting
+  - `SELL` trade는 current average cost 기반 realized PnL까지 posting
+  - `BUY` trade는 realized PnL 대상이 아니므로 `realizedPnlEntry`를 `null`로 응답
+- `PostSettlementAccountingService` 추가
+  - controller는 trade id만 받고, 실제 조회/검증/하위 posting 순서는 service가 담당
+  - 개별 posting API를 조합하는 운영형 use case로 분리
+- `AccountingPostingResult` 추가
+  - position ledger entry, cash ledger entry, average cost entry, realized PnL entry를 한 응답으로 반환
+- service/controller 테스트 추가
+- `docs/post-trade-api.md`, `docs/order-lifecycle-flow.md`, `docs/restful-api-strategy.md` 갱신
+
+#### 메모
+
+- 기존 `ledger-postings`, `average-cost-postings`, `realized-pnl-postings` API는 테스트/시뮬레이션과 장애 복구용 경계로 유지한다.
+- 운영 흐름에서는 settlement confirmation 이후 accounting posting API를 호출하면 순서 실수를 줄일 수 있다.
+- 실제 DB 영속화 단계에서는 이 workflow를 하나의 transaction으로 묶거나, outbox 기반 재처리 구조를 검토한다.
+- 현재 in-memory 구현은 각 원장의 idempotency를 활용하지만, 여러 repository를 가로지르는 진짜 atomicity는 DB 전환 시 보강해야 한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :post-trade:test`
+- 전체 빌드: `./gradlew build`
+
 ### 2026.06.21 slice
 
 realized/unrealized PnL이 current average cost를 서버 내부에서 조회해 계산할 수 있도록 연결.
