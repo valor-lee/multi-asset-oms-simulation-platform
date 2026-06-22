@@ -420,7 +420,19 @@ realizedPnl = grossNotional - quantity * averageCost - feeAmount - taxAmount
 }
 ```
 
-## 10. Current Realized PnL 조회
+## 10. Current Average Cost 기준 Realized PnL Posting
+
+```http
+POST /api/post-trade/trades/{tradeId}/realized-pnl-postings/current-average-cost
+```
+
+request body는 없다. trade의 portfolio/instrument 기준 current average cost를 조회해 realized PnL을 계산한다.
+
+이미 해당 SELL trade가 average cost 원장에 posting됐다면, current average cost가 0으로 바뀌는 전량 매도 케이스를 피하기 위해 그 trade의 `AverageCostEntry.costDelta`에서 매도 직전 평균단가를 복원한다. 아직 average cost posting 전이면 현재 average cost를 사용한다.
+
+응답 구조와 오류 응답은 기본 realized PnL posting API와 동일하다.
+
+## 11. Current Realized PnL 조회
 
 ```http
 GET /api/post-trade/portfolios/{portfolioId}/realized-pnl
@@ -437,7 +449,7 @@ GET /api/post-trade/portfolios/{portfolioId}/realized-pnl
 
 realized PnL entry가 아직 없으면 `realizedPnl`은 `0`으로 응답한다.
 
-## 11. Unrealized PnL Snapshot 조회
+## 12. Unrealized PnL Snapshot 조회
 
 ```http
 GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl?averageCost=54000&marketPrice=55000
@@ -478,7 +490,7 @@ unrealizedPnl = marketValue - costBasis
 
 현재 position이 없으면 `quantity`, `costBasis`, `marketValue`, `unrealizedPnl`은 모두 `0`으로 응답한다.
 
-## 12. Latest Market Price 기준 Unrealized PnL Snapshot 조회
+## 13. Latest Market Price 기준 Unrealized PnL Snapshot 조회
 
 ```http
 GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl/latest?averageCost=54000
@@ -516,6 +528,37 @@ GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized
 }
 ```
 
+## 14. Current Average Cost + Latest Market Price 기준 Unrealized PnL Snapshot 조회
+
+```http
+GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl/latest/current-average-cost
+```
+
+query parameter는 없다. average cost는 post-trade average cost 원장에서 조회하고, market price는 market-data latest price에서 조회한다.
+
+### Response
+
+```json
+{
+  "portfolioId": "portfolio-1",
+  "instrumentId": "005930",
+  "quantity": 10,
+  "averageCost": 54000,
+  "marketPrice": 55000,
+  "costBasis": 540000,
+  "marketValue": 550000,
+  "unrealizedPnl": 10000,
+  "valuedAt": "2026-06-07T00:00:00Z"
+}
+```
+
+이 API는 운영 흐름에서 가장 자동화된 unrealized PnL 조회 경계다.
+
+```text
+current position + current average cost + latest market price
+    -> unrealized PnL snapshot
+```
+
 ## PnL 메모
 
 - realized PnL은 매도가 확정된 뒤 실제로 실현된 손익이다.
@@ -523,4 +566,5 @@ GET /api/post-trade/portfolios/{portfolioId}/positions/{instrumentId}/unrealized
 - realized PnL posting은 상태를 변경하고 entry를 만들기 때문에 `POST`로 둔다.
 - unrealized PnL snapshot은 저장하지 않는 계산 결과이므로 `GET`으로 둔다.
 - latest market price 기반 snapshot은 market-data의 현재 가격을 사용하므로, 가격 수집/갱신이 먼저 되어 있어야 한다.
-- 평균단가 원장이 생겼지만 현재 PnL API는 아직 `averageCost`를 요청값으로 받는다. 다음 단계에서 current average cost를 내부 조회하도록 연결할 수 있다.
+- `averageCost`를 요청값으로 받는 API는 테스트/시뮬레이션 경계로 유지한다.
+- current average cost 기반 API는 post-trade 평균단가 원장을 내부 조회하므로 운영 흐름에 더 가깝다.

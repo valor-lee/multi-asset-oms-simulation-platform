@@ -1,6 +1,7 @@
 package com.multiassetoms.posttrade.application;
 
 import com.multiassetoms.intentgeneration.model.OrderSide;
+import com.multiassetoms.posttrade.infrastructure.InMemoryAverageCostRepository;
 import com.multiassetoms.posttrade.infrastructure.InMemoryRealizedPnlRepository;
 import com.multiassetoms.posttrade.infrastructure.InMemoryTradeRepository;
 import com.multiassetoms.posttrade.model.RealizedPnlEntry;
@@ -28,9 +29,16 @@ class RealizedPnlServiceTest {
     private final InMemoryTradeRepository tradeRepository = new InMemoryTradeRepository();
     private final InMemoryRealizedPnlRepository realizedPnlRepository =
             new InMemoryRealizedPnlRepository();
+    private final InMemoryAverageCostRepository averageCostRepository = new InMemoryAverageCostRepository();
+    private final AverageCostService averageCostService = new AverageCostService(
+            tradeRepository,
+            averageCostRepository,
+            fixedClock
+    );
     private final RealizedPnlService service = new RealizedPnlService(
             tradeRepository,
             realizedPnlRepository,
+            averageCostService,
             fixedClock
     );
 
@@ -122,6 +130,72 @@ class RealizedPnlServiceTest {
 
         assertEquals(firstResult, secondResult);
         assertEquals(new BigDecimal("10000"), service.currentRealizedPnl(trade.portfolioId()));
+    }
+
+    @Test
+    void postsRealizedPnlWithCurrentAverageCost() {
+        Trade buyTrade = createTrade(
+                UUID.fromString("00000000-0000-0000-0000-000000009210"),
+                OrderSide.BUY,
+                new BigDecimal("10"),
+                new BigDecimal("54000.0000000000"),
+                new BigDecimal("540000"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                TradeStatus.SETTLED
+        );
+        Trade sellTrade = createTrade(
+                UUID.fromString("00000000-0000-0000-0000-000000009211"),
+                OrderSide.SELL,
+                new BigDecimal("10"),
+                new BigDecimal("55000.0000000000"),
+                new BigDecimal("550000"),
+                new BigDecimal("100"),
+                new BigDecimal("30"),
+                TradeStatus.SETTLED
+        );
+        tradeRepository.save(buyTrade);
+        tradeRepository.save(sellTrade);
+        averageCostService.post(buyTrade.tradeId());
+
+        RealizedPnlEntry entry = service.postWithCurrentAverageCost(sellTrade.tradeId());
+
+        assertEquals(new BigDecimal("54000.0000000000"), entry.averageCost());
+        assertEquals(new BigDecimal("9870.0000000000"), entry.realizedPnl());
+    }
+
+    @Test
+    void postsRealizedPnlWithAverageCostEntryWhenSellAlreadyPostedToAverageCost() {
+        Trade buyTrade = createTrade(
+                UUID.fromString("00000000-0000-0000-0000-000000009212"),
+                OrderSide.BUY,
+                new BigDecimal("10"),
+                new BigDecimal("54000.0000000000"),
+                new BigDecimal("540000"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                TradeStatus.SETTLED
+        );
+        Trade sellTrade = createTrade(
+                UUID.fromString("00000000-0000-0000-0000-000000009213"),
+                OrderSide.SELL,
+                new BigDecimal("10"),
+                new BigDecimal("55000.0000000000"),
+                new BigDecimal("550000"),
+                new BigDecimal("100"),
+                new BigDecimal("30"),
+                TradeStatus.SETTLED
+        );
+        tradeRepository.save(buyTrade);
+        tradeRepository.save(sellTrade);
+        averageCostService.post(buyTrade.tradeId());
+        averageCostService.post(sellTrade.tradeId());
+
+        RealizedPnlEntry entry = service.postWithCurrentAverageCost(sellTrade.tradeId());
+
+        assertEquals(new BigDecimal("54000.0000000000"), entry.averageCost());
+        assertEquals(new BigDecimal("9870.0000000000"), entry.realizedPnl());
+        assertEquals(BigDecimal.ZERO, averageCostService.currentAverageCost("portfolio-1", "005930").averageCost());
     }
 
     @Test

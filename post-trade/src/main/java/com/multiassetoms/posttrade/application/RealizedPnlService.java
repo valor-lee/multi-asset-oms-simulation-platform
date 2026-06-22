@@ -20,15 +20,18 @@ public class RealizedPnlService {
 
     private final TradeRepository tradeRepository;
     private final RealizedPnlRepository realizedPnlRepository;
+    private final AverageCostService averageCostService;
     private final Clock clock;
 
     public RealizedPnlService(
             TradeRepository tradeRepository,
             RealizedPnlRepository realizedPnlRepository,
+            AverageCostService averageCostService,
             Clock clock
     ) {
         this.tradeRepository = tradeRepository;
         this.realizedPnlRepository = realizedPnlRepository;
+        this.averageCostService = averageCostService;
         this.clock = clock;
     }
 
@@ -55,6 +58,24 @@ public class RealizedPnlService {
 
         validatePostable(trade, averageCost);
         return realizedPnlRepository.save(toPnlEntry(trade, averageCost, Instant.now(clock)));
+    }
+
+    /**
+     * settled SELL trade의 portfolio/instrument 현재 평균단가를 조회해 realized PnL을 기록한다.
+     *
+     * @param tradeId realized PnL을 기록할 trade id
+     * @return 생성되었거나 이미 존재하는 realized PnL entry
+     */
+    public RealizedPnlEntry postWithCurrentAverageCost(UUID tradeId) {
+        RealizedPnlEntry existingEntry = realizedPnlRepository.findByTradeId(tradeId)
+                .orElse(null);
+        if (existingEntry != null) {
+            return existingEntry;
+        }
+
+        Trade trade = tradeRepository.findByTradeId(tradeId)
+                .orElseThrow(() -> new TradeNotFoundException("trade not found"));
+        return post(tradeId, averageCostService.averageCostForRealizedPnl(trade));
     }
 
     /**

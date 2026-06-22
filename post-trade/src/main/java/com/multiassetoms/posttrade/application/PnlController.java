@@ -36,6 +36,13 @@ public class PnlController {
         return realizedPnlService.post(tradeId, request.requireAverageCost());
     }
 
+    @PostMapping("/trades/{tradeId}/realized-pnl-postings/current-average-cost")
+    public RealizedPnlEntry postRealizedPnlWithCurrentAverageCost(
+            @PathVariable("tradeId") UUID tradeId
+    ) {
+        return realizedPnlService.postWithCurrentAverageCost(tradeId);
+    }
+
     @GetMapping("/portfolios/{portfolioId}/realized-pnl")
     public CurrentRealizedPnlResponse currentRealizedPnl(
             @PathVariable("portfolioId") String portfolioId
@@ -66,6 +73,17 @@ public class PnlController {
                 portfolioId,
                 instrumentId,
                 averageCost
+        );
+    }
+
+    @GetMapping("/portfolios/{portfolioId}/positions/{instrumentId}/unrealized-pnl/latest/current-average-cost")
+    public UnrealizedPnlSnapshot unrealizedPnlSnapshotWithCurrentAverageCostAndLatestMarketPrice(
+            @PathVariable("portfolioId") String portfolioId,
+            @PathVariable("instrumentId") String instrumentId
+    ) {
+        return unrealizedPnlService.snapshotWithCurrentAverageCostAndLatestMarketPrice(
+                portfolioId,
+                instrumentId
         );
     }
 }
