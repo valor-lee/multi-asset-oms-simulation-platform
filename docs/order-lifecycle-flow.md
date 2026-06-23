@@ -26,17 +26,17 @@ flowchart TD
 
     J --> K[Settlement Schedule]
     K --> L[Settlement Confirmation]
-    L --> M[Post-Settlement Ledger Posting]
+    L --> M[Post-Settlement Accounting Posting]
 
     M --> N[Position Ledger]
     M --> O[Cash Ledger]
-    L --> P[Average Cost Posting]
+    M --> P[Average Cost Posting]
+    M --> T[Realized PnL Posting]
 
     N --> Q[Current Position 조회]
     O --> R[Current Cash 조회]
     P --> S[Current Average Cost 조회]
 
-    S --> T[Realized PnL Posting]
     S --> U[Unrealized PnL Snapshot]
     V[Market Data Latest Price] --> U
 
@@ -55,7 +55,7 @@ flowchart TD
 | Order 변환/실행 | `execution` | risk 승인 intent를 실제 order로 변환하고 ACK/FILL/CANCEL/REJECT 상태 관리 |
 | Trade Capture | `post-trade` | execution fill 결과를 post-trade trade로 캡처 |
 | Settlement | `post-trade` | trade 결제 예정/완료 상태 관리 |
-| Ledger Posting | `post-trade` | settled trade를 position/cash ledger에 반영 |
+| Accounting Posting | `post-trade` | settled trade를 position/cash ledger, average cost, realized PnL 회계 흐름에 반영 |
 | Average Cost Posting | `post-trade` | settled trade를 평균단가 원장에 반영 |
 | PnL | `post-trade` | realized/unrealized PnL 계산 |
 | Market Data | `market-data` | latest price 저장/조회 |
@@ -115,6 +115,9 @@ flowchart LR
 
 현재 연결 방향:
 
+- post-settlement accounting posting
+  - 운영형 API: settlement 완료 trade를 position/cash ledger, average cost, SELL realized PnL에 한 번에 반영
+  - 개별 posting API: 테스트/시뮬레이션과 장애 복구 경계로 유지
 - realized PnL posting
   - 시뮬레이션 API: request body의 `averageCost` 사용
   - 운영형 API: `AverageCostService.averageCostForRealizedPnl()` 조회값 사용
