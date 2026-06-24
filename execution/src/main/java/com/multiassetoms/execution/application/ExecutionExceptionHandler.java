@@ -1,6 +1,8 @@
 package com.multiassetoms.execution.application;
 
 import com.multiassetoms.execution.model.ExecutionRequestException;
+import com.multiassetoms.execution.model.ExecutionSimulationException;
+import com.multiassetoms.execution.model.ExecutionSimulationUnavailableException;
 import com.multiassetoms.execution.model.OrderAcknowledgementException;
 import com.multiassetoms.execution.model.OrderCancellationException;
 import com.multiassetoms.execution.model.OrderConversionException;
@@ -8,6 +10,7 @@ import com.multiassetoms.execution.model.OrderFillException;
 import com.multiassetoms.execution.model.OrderNotFoundException;
 import com.multiassetoms.execution.model.OrderSubmissionException;
 import com.multiassetoms.intentgeneration.model.OrderIntentNotFoundException;
+import com.multiassetoms.marketdata.model.MarketPriceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -31,6 +34,12 @@ public class ExecutionExceptionHandler {
     @ExceptionHandler(OrderNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleOrderNotFoundException(OrderNotFoundException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(MarketPriceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleMarketPriceNotFoundException(MarketPriceNotFoundException exception) {
         return new ErrorResponse(exception.getMessage());
     }
 
@@ -61,6 +70,20 @@ public class ExecutionExceptionHandler {
     @ExceptionHandler(OrderFillException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleOrderFillException(OrderFillException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(ExecutionSimulationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleExecutionSimulationException(ExecutionSimulationException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
+    @ExceptionHandler(ExecutionSimulationUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ErrorResponse handleExecutionSimulationUnavailableException(
+            ExecutionSimulationUnavailableException exception
+    ) {
         return new ErrorResponse(exception.getMessage());
     }
 
