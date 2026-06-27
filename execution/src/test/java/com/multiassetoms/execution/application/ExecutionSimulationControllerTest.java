@@ -62,7 +62,8 @@ class ExecutionSimulationControllerTest {
                 orderId,
                 simulationId,
                 new BigDecimal("4"),
-                new BigDecimal("0.01")
+                new BigDecimal("0.01"),
+                BigDecimal.ZERO
         )).thenReturn(new ExecutionSimulationResult(
                 simulationId,
                 orderId,
@@ -71,6 +72,7 @@ class ExecutionSimulationControllerTest {
                 new BigDecimal("55550"),
                 new BigDecimal("4"),
                 new BigDecimal("0.01"),
+                BigDecimal.ZERO,
                 80L,
                 order(orderId)
         ));
@@ -83,6 +85,7 @@ class ExecutionSimulationControllerTest {
                 .andExpect(jsonPath("$.simulationStatus").value("FILLED"))
                 .andExpect(jsonPath("$.referencePrice").value(55000))
                 .andExpect(jsonPath("$.fillPrice").value(55550))
+                .andExpect(jsonPath("$.rejectRate").value(0))
                 .andExpect(jsonPath("$.delayMillis").value(80))
                 .andExpect(jsonPath("$.order.status").value("PARTIALLY_FILLED"));
     }
@@ -135,6 +138,7 @@ class ExecutionSimulationControllerTest {
                 orderId,
                 simulationId,
                 new BigDecimal("4"),
+                BigDecimal.ZERO,
                 BigDecimal.ZERO
         )).thenThrow(new ExecutionSimulationException(
                 "only SENT, ACKED, or PARTIALLY_FILLED orders can be simulated"
@@ -161,6 +165,7 @@ class ExecutionSimulationControllerTest {
                 orderId,
                 simulationId,
                 new BigDecimal("4"),
+                BigDecimal.ZERO,
                 BigDecimal.ZERO
         )).thenThrow(new MarketPriceNotFoundException("market price not found"));
 
@@ -169,6 +174,66 @@ class ExecutionSimulationControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("market price not found"));
+    }
+
+    @Test
+    void returnsBadRequestWhenRejectRateIsInvalid() throws Exception {
+        UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000072006");
+        UUID simulationId = UUID.fromString("00000000-0000-0000-0000-000000073006");
+
+        mockMvc.perform(post("/api/orders/{orderId}/execution-simulations", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "simulationId": "%s",
+                                  "fillQuantity": 4,
+                                  "slippageRate": 0,
+                                  "rejectRate": 1.1
+                                }
+                                """.formatted(simulationId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("rejectRate must be zero or greater and less than or equal to one"));
+    }
+
+    @Test
+    void returnsRejectedSimulationResult() throws Exception {
+        UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000072007");
+        UUID simulationId = UUID.fromString("00000000-0000-0000-0000-000000073007");
+        ExecutionSimulationRequest request = new ExecutionSimulationRequest(
+                simulationId,
+                new BigDecimal("4"),
+                BigDecimal.ZERO,
+                new BigDecimal("1.0")
+        );
+        when(executionSimulationService.simulate(
+                orderId,
+                simulationId,
+                new BigDecimal("4"),
+                BigDecimal.ZERO,
+                new BigDecimal("1.0")
+        )).thenReturn(new ExecutionSimulationResult(
+                simulationId,
+                orderId,
+                ExecutionSimulationStatus.REJECTED,
+                null,
+                null,
+                new BigDecimal("4"),
+                BigDecimal.ZERO,
+                new BigDecimal("1.0"),
+                120L,
+                rejectedOrder(orderId)
+        ));
+
+        mockMvc.perform(post("/api/orders/{orderId}/execution-simulations", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.simulationStatus").value("REJECTED"))
+                .andExpect(jsonPath("$.referencePrice").doesNotExist())
+                .andExpect(jsonPath("$.fillPrice").doesNotExist())
+                .andExpect(jsonPath("$.rejectRate").value(1.0))
+                .andExpect(jsonPath("$.order.status").value("REJECTED"));
     }
 
     private Order order(UUID orderId) {
@@ -184,6 +249,24 @@ class ExecutionSimulationControllerTest {
                 null,
                 TimeInForce.DAY,
                 OrderStatus.PARTIALLY_FILLED,
+                Instant.parse("2026-06-23T00:00:00Z"),
+                Instant.parse("2026-06-24T00:00:00Z")
+        );
+    }
+
+    private Order rejectedOrder(UUID orderId) {
+        return new Order(
+                orderId,
+                UUID.fromString("00000000-0000-0000-0000-000000074002"),
+                "portfolio-1",
+                "005930",
+                OrderSide.BUY,
+                OrderType.MARKET,
+                new BigDecimal("10"),
+                BigDecimal.ZERO,
+                null,
+                TimeInForce.DAY,
+                OrderStatus.REJECTED,
                 Instant.parse("2026-06-23T00:00:00Z"),
                 Instant.parse("2026-06-24T00:00:00Z")
         );

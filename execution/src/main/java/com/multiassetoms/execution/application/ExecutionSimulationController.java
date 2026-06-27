@@ -28,7 +28,8 @@ public class ExecutionSimulationController {
                 orderId,
                 request.requireSimulationId(),
                 request.requireFillQuantity(),
-                request.requireSlippageRate()
+                request.requireSlippageRate(),
+                request.rejectRateOrZero()
         );
     }
 }

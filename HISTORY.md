@@ -4,6 +4,38 @@
 
 ## execution
 
+### 2026.06.28 slice
+
+execution simulator가 성공 체결 경로뿐 아니라 broker/exchange reject 경로도 재현할 수 있도록 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/orders/{orderId}/execution-simulations` request에 선택 필드 `rejectRate` 추가
+  - 생략하면 `0`으로 처리해 기존 호출과 동일하게 동작
+  - `0 <= rejectRate <= 1` 범위만 허용
+- `ExecutionSimulationStatus.REJECTED` 추가
+- `ExecutionSimulationService`에 broker reject 확률 평가 추가
+  - `SENT` 주문에서만 ACK 전에 reject 확률을 평가
+  - reject 조건에 걸리면 기존 `OrderAcknowledgementService.reject()`를 호출해 `Order(REJECTED)`로 전이
+  - reject 결과는 `referencePrice`, `fillPrice` 없이 저장
+- `ExecutionSimulationRandom` 포트와 `ThreadLocalExecutionSimulationRandom` 구현 추가
+  - service가 난수 생성 방식에 직접 묶이지 않도록 분리
+  - 테스트에서는 고정 난수 구현을 주입해 reject/미reject 결과를 안정적으로 검증
+- service/controller/repository 테스트 갱신
+- `docs/execution-api.md`, `docs/order-lifecycle-flow.md` 갱신
+
+#### 메모
+
+- 이번 reject는 “주문이 시장에 접수되기 전 broker/exchange가 거절한 응답”을 MVP에서 확률값으로 단순화한 것이다.
+- 이미 `ACKED` 또는 `PARTIALLY_FILLED`인 주문은 venue가 주문을 접수한 뒤이므로 `rejectRate`를 주더라도 reject를 다시 평가하지 않는다.
+- reject가 발생하면 가격 조회와 fill 평가를 하지 않는다. broker reject는 체결 가격 문제가 아니라 주문 접수 실패 이벤트이기 때문이다.
+- 현재 확률 기반 reject는 시뮬레이터 정책이다. 실제 broker 연동 단계에서는 확률값이 아니라 외부 API/FIX reject 이벤트를 받아 같은 `OrderAcknowledgementService.reject()` 경계로 반영한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+- 전체 빌드: `./gradlew build`
+
 ### 2026.06.24 slice
 
 MVP execution simulator 범위의 ACK 지연, latest price 기반 지정가 체결 조건, 시장가 슬리피지를 하나의 실행 시뮬레이션 API로 연결.

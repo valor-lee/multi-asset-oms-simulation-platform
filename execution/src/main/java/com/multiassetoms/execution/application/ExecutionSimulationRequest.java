@@ -8,8 +8,17 @@ import java.util.UUID;
 public record ExecutionSimulationRequest(
         UUID simulationId,
         BigDecimal fillQuantity,
-        BigDecimal slippageRate
+        BigDecimal slippageRate,
+        BigDecimal rejectRate
 ) {
+
+    public ExecutionSimulationRequest(
+            UUID simulationId,
+            BigDecimal fillQuantity,
+            BigDecimal slippageRate
+    ) {
+        this(simulationId, fillQuantity, slippageRate, BigDecimal.ZERO);
+    }
 
     public UUID requireSimulationId() {
         if (simulationId == null) {
@@ -34,5 +43,18 @@ public record ExecutionSimulationRequest(
             );
         }
         return slippageRate;
+    }
+
+    public BigDecimal rejectRateOrZero() {
+        if (rejectRate == null) {
+            return BigDecimal.ZERO;
+        }
+        if (rejectRate.compareTo(BigDecimal.ZERO) < 0
+                || rejectRate.compareTo(BigDecimal.ONE) > 0) {
+            throw new ExecutionRequestException(
+                    "rejectRate must be zero or greater and less than or equal to one"
+            );
+        }
+        return rejectRate;
     }
 }

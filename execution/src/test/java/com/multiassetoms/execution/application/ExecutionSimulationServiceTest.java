@@ -51,6 +51,7 @@ class ExecutionSimulationServiceTest {
             orderRepository,
             simulationRepository,
             () -> 80L,
+            () -> BigDecimal.ONE,
             marketPriceService,
             acknowledgementService,
             fillService
@@ -70,7 +71,8 @@ class ExecutionSimulationServiceTest {
                 order.orderId(),
                 UUID.fromString("00000000-0000-0000-0000-000000071001"),
                 new BigDecimal("4"),
-                new BigDecimal("0.01")
+                new BigDecimal("0.01"),
+                BigDecimal.ZERO
         );
 
         assertEquals(ExecutionSimulationStatus.FILLED, result.simulationStatus());
@@ -96,7 +98,8 @@ class ExecutionSimulationServiceTest {
                 order.orderId(),
                 UUID.fromString("00000000-0000-0000-0000-000000071002"),
                 new BigDecimal("10"),
-                new BigDecimal("0.01")
+                new BigDecimal("0.01"),
+                BigDecimal.ZERO
         );
 
         assertEquals(new BigDecimal("54450"), result.fillPrice());
@@ -123,7 +126,8 @@ class ExecutionSimulationServiceTest {
                 order.orderId(),
                 UUID.fromString("00000000-0000-0000-0000-000000071003"),
                 new BigDecimal("10"),
-                new BigDecimal("0.03")
+                new BigDecimal("0.03"),
+                BigDecimal.ZERO
         );
 
         assertEquals(ExecutionSimulationStatus.FILLED, result.simulationStatus());
@@ -149,6 +153,7 @@ class ExecutionSimulationServiceTest {
                 order.orderId(),
                 UUID.fromString("00000000-0000-0000-0000-000000071004"),
                 new BigDecimal("10"),
+                BigDecimal.ZERO,
                 BigDecimal.ZERO
         );
 
@@ -174,7 +179,8 @@ class ExecutionSimulationServiceTest {
                 order.orderId(),
                 simulationId,
                 new BigDecimal("4"),
-                new BigDecimal("0.01")
+                new BigDecimal("0.01"),
+                BigDecimal.ZERO
         );
         marketPriceService.upsertLatestPrice(
                 order.instrumentId(),
@@ -185,7 +191,8 @@ class ExecutionSimulationServiceTest {
                 order.orderId(),
                 simulationId,
                 new BigDecimal("4"),
-                new BigDecimal("0.01")
+                new BigDecimal("0.01"),
+                BigDecimal.ZERO
         );
 
         assertEquals(first, duplicate);
@@ -207,7 +214,8 @@ class ExecutionSimulationServiceTest {
                 order.orderId(),
                 simulationId,
                 new BigDecimal("4"),
-                new BigDecimal("0.01")
+                new BigDecimal("0.01"),
+                BigDecimal.ZERO
         );
 
         ExecutionSimulationException exception = assertThrows(
@@ -216,7 +224,8 @@ class ExecutionSimulationServiceTest {
                         order.orderId(),
                         simulationId,
                         new BigDecimal("5"),
-                        new BigDecimal("0.01")
+                        new BigDecimal("0.01"),
+                        BigDecimal.ZERO
                 )
         );
 
@@ -237,6 +246,7 @@ class ExecutionSimulationServiceTest {
                         order.orderId(),
                         UUID.fromString("00000000-0000-0000-0000-000000071007"),
                         new BigDecimal("1"),
+                        BigDecimal.ZERO,
                         BigDecimal.ZERO
                 )
         );
@@ -245,6 +255,38 @@ class ExecutionSimulationServiceTest {
                 "only SENT, ACKED, or PARTIALLY_FILLED orders can be simulated",
                 exception.getMessage()
         );
+    }
+
+    @Test
+    void rejectsSentOrderWhenBrokerRejectRateMatches() {
+        ExecutionSimulationService rejectingService = new ExecutionSimulationService(
+                orderRepository,
+                simulationRepository,
+                () -> 120L,
+                () -> BigDecimal.ZERO,
+                marketPriceService,
+                acknowledgementService,
+                fillService
+        );
+        Order order = order(OrderStatus.SENT, OrderSide.BUY, OrderType.MARKET, null);
+        orderRepository.save(order);
+
+        ExecutionSimulationResult result = rejectingService.simulate(
+                order.orderId(),
+                UUID.fromString("00000000-0000-0000-0000-000000071008"),
+                new BigDecimal("1"),
+                BigDecimal.ZERO,
+                new BigDecimal("1.0")
+        );
+
+        assertEquals(ExecutionSimulationStatus.REJECTED, result.simulationStatus());
+        assertNull(result.referencePrice());
+        assertNull(result.fillPrice());
+        assertEquals(new BigDecimal("1.0"), result.rejectRate());
+        assertEquals(120L, result.delayMillis());
+        assertEquals(OrderStatus.REJECTED, result.order().status());
+        assertEquals(1, eventRepository.findByOrderId(order.orderId()).size());
+        assertEquals(0, fillExecutionRepository.findByOrderId(order.orderId()).size());
     }
 
     private Order order(

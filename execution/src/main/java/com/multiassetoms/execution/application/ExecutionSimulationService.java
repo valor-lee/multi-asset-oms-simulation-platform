@@ -1,6 +1,7 @@
 package com.multiassetoms.execution.application;
 
 import com.multiassetoms.execution.application.port.ExecutionSimulationDelay;
+import com.multiassetoms.execution.application.port.ExecutionSimulationRandom;
 import com.multiassetoms.execution.application.port.ExecutionSimulationRepository;
 import com.multiassetoms.execution.application.port.OrderRepository;
 import com.multiassetoms.execution.model.ExecutionSimulationException;
@@ -26,6 +27,7 @@ public class ExecutionSimulationService {
     private final OrderRepository orderRepository;
     private final ExecutionSimulationRepository simulationRepository;
     private final ExecutionSimulationDelay simulationDelay;
+    private final ExecutionSimulationRandom simulationRandom;
     private final MarketPriceService marketPriceService;
     private final OrderAcknowledgementService acknowledgementService;
     private final OrderFillService fillService;
@@ -34,6 +36,7 @@ public class ExecutionSimulationService {
             OrderRepository orderRepository,
             ExecutionSimulationRepository simulationRepository,
             ExecutionSimulationDelay simulationDelay,
+            ExecutionSimulationRandom simulationRandom,
             MarketPriceService marketPriceService,
             OrderAcknowledgementService acknowledgementService,
             OrderFillService fillService
@@ -41,43 +44,59 @@ public class ExecutionSimulationService {
         this.orderRepository = orderRepository;
         this.simulationRepository = simulationRepository;
         this.simulationDelay = simulationDelay;
+        this.simulationRandom = simulationRandom;
         this.marketPriceService = marketPriceService;
         this.acknowledgementService = acknowledgementService;
         this.fillService = fillService;
     }
 
     /**
-     * 최신 시장 가격을 기준으로 ACK 지연과 체결 가격을 시뮬레이션한다.
+     * broker/exchange 역할을 대신해 ACK 지연, reject, 체결 가격을 시뮬레이션한다.
      * 같은 simulationId 재요청은 저장된 결과를 반환해 ACK/fill을 중복 반영하지 않는다.
      *
      * 1. 주문 상태 확인
-     * 2. 최신 가격 조회
-     * 3. 체결 가능 여부
-     * 4. 판단 ACK 처리
+     * 2. ACK 전 broker reject 확률 평가
+     * 3. reject되지 않은 주문 ACK 처리
+     * 4. 최신 가격 조회와 체결 가능 여부 판단
      * 5. fill 처리
      * 6. 결과 저장
-     * 
-     * 실제 거래소 역할
      */
     public synchronized ExecutionSimulationResult simulate(
             UUID orderId,
             UUID simulationId,
             BigDecimal fillQuantity,
-            BigDecimal slippageRate
+            BigDecimal slippageRate,
+            BigDecimal rejectRate
     ) {
-        validateRequest(orderId, simulationId, fillQuantity, slippageRate);
+        validateRequest(orderId, simulationId, fillQuantity, slippageRate, rejectRate);
 
         ExecutionSimulationResult existingResult = simulationRepository
                 .findBySimulationId(simulationId)
                 .orElse(null);
         if (existingResult != null) {
-            return existingResult(orderId, fillQuantity, slippageRate, existingResult);
+            return existingResult(orderId, fillQuantity, slippageRate, rejectRate, existingResult);
         }
 
         Order order = findOrder(orderId);
         validateSimulatable(order);
 
         long delayMillis = simulationDelay.await();
+        if (shouldReject(order, rejectRate)) {
+            Order rejectedOrder = reject(order, simulationId);
+            return simulationRepository.save(new ExecutionSimulationResult(
+                    simulationId,
+                    orderId,
+                    ExecutionSimulationStatus.REJECTED,
+                    null,
+                    null,
+                    fillQuantity,
+                    slippageRate,
+                    rejectRate,
+                    delayMillis,
+                    rejectedOrder
+            ));
+        }
+
         Order acknowledgedOrder = acknowledgeIfSent(order, simulationId);
         MarketPrice marketPrice = marketPriceService.latestPrice(order.instrumentId());
         BigDecimal referencePrice = marketPrice.price();
@@ -91,6 +110,7 @@ public class ExecutionSimulationService {
                     null,
                     fillQuantity,
                     slippageRate,
+                    rejectRate,
                     delayMillis,
                     acknowledgedOrder
             ));
@@ -111,6 +131,7 @@ public class ExecutionSimulationService {
                 fillPrice,
                 fillQuantity,
                 slippageRate,
+                rejectRate,
                 delayMillis,
                 filledOrder
         ));
@@ -120,7 +141,8 @@ public class ExecutionSimulationService {
             UUID orderId,
             UUID simulationId,
             BigDecimal fillQuantity,
-            BigDecimal slippageRate
+            BigDecimal slippageRate,
+            BigDecimal rejectRate
     ) {
         if (orderId == null) {
             throw new ExecutionSimulationException("orderId is required");
@@ -138,19 +160,28 @@ public class ExecutionSimulationService {
                     "slippageRate must be zero or greater and less than one"
             );
         }
+        if (rejectRate == null
+                || rejectRate.compareTo(BigDecimal.ZERO) < 0
+                || rejectRate.compareTo(BigDecimal.ONE) > 0) {
+            throw new ExecutionSimulationException(
+                    "rejectRate must be zero or greater and less than or equal to one"
+            );
+        }
     }
 
     private ExecutionSimulationResult existingResult(
             UUID orderId,
             BigDecimal fillQuantity,
             BigDecimal slippageRate,
+            BigDecimal rejectRate,
             ExecutionSimulationResult result
     ) {
         if (!result.orderId().equals(orderId)) {
             throw new ExecutionSimulationException("simulationId belongs to another order");
         }
         if (result.requestedFillQuantity().compareTo(fillQuantity) != 0
-                || result.slippageRate().compareTo(slippageRate) != 0) {
+                || result.slippageRate().compareTo(slippageRate) != 0
+                || result.rejectRate().compareTo(rejectRate) != 0) {
             throw new ExecutionSimulationException(
                     "simulationId was already used with another request"
             );
@@ -171,6 +202,20 @@ public class ExecutionSimulationService {
                     "only SENT, ACKED, or PARTIALLY_FILLED orders can be simulated"
             );
         }
+    }
+
+    private boolean shouldReject(Order order, BigDecimal rejectRate) {
+        if (order.status() != OrderStatus.SENT || rejectRate.compareTo(BigDecimal.ZERO) == 0) {
+            return false;
+        }
+        return simulationRandom.nextUnitInterval().compareTo(rejectRate) < 0;
+    }
+
+    private Order reject(Order order, UUID simulationId) {
+        UUID rejectEventId = UUID.nameUUIDFromBytes(
+                ("execution-simulation-reject:" + simulationId).getBytes(StandardCharsets.UTF_8)
+        );
+        return acknowledgementService.reject(order.orderId(), rejectEventId);
     }
 
     private Order acknowledgeIfSent(Order order, UUID simulationId) {
