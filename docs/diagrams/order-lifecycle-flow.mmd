@@ -5,8 +5,11 @@ flowchart TD
     C -->|REJECTED| C1[OrderIntent RISK_REJECTED]
 
     D --> E[Order Submission]
-    E --> F[Broker / Exchange ACK]
-    F --> G[Fill 반영]
+    E --> X[Execution Simulation<br/>Delay / Latest Price / Slippage]
+    X --> F[Broker / Exchange ACK]
+    X --> G[Fill 반영]
+    E --> F
+    F --> G
     F --> H[Reject 반영]
     F --> I[Cancel Request / Confirmation]
 

@@ -16,8 +16,11 @@ flowchart TD
     C -->|REJECTED| C1[OrderIntent RISK_REJECTED]
 
     D --> E[Order Submission]
-    E --> F[Broker / Exchange ACK]
-    F --> G[Fill 반영]
+    E --> X[Execution Simulation<br/>Delay / Latest Price / Slippage]
+    X --> F[Broker / Exchange ACK]
+    X --> G[Fill 반영]
+    E --> F
+    F --> G
     F --> H[Reject 반영]
     F --> I[Cancel Request / Confirmation]
 
@@ -53,6 +56,7 @@ flowchart TD
 | OrderIntent 생성 | `intent-generation` | 수동/리밸런싱/전략 주문 의도를 공통 모델로 생성 |
 | Pre-Trade Risk 평가 | `pre-trade-risk` | 주문 전 한도, 중복 주문, 가격 밴드, kill switch 검사 |
 | Order 변환/실행 | `execution` | risk 승인 intent를 실제 order로 변환하고 ACK/FILL/CANCEL/REJECT 상태 관리 |
+| Execution Simulation | `execution` | latest price 기준 지정가 체결 조건, 시장가 슬리피지, 20~200ms 지연 반영 |
 | Trade Capture | `post-trade` | execution fill 결과를 post-trade trade로 캡처 |
 | Settlement | `post-trade` | trade 결제 예정/완료 상태 관리 |
 | Accounting Posting | `post-trade` | settled trade를 position/cash ledger, average cost, realized PnL 회계 흐름에 반영 |

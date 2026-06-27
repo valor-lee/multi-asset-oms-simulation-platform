@@ -387,6 +387,7 @@ API 문서에는 최소한 다음을 포함한다.
 | `execution` | `POST /api/orders/{orderId}/acknowledgements` | broker/exchange ACK 반영 |
 | `execution` | `POST /api/orders/{orderId}/rejections` | broker/exchange reject 반영 |
 | `execution` | `POST /api/orders/{orderId}/fills` | broker/exchange fill 반영 |
+| `execution` | `POST /api/orders/{orderId}/execution-simulations` | latest price 기반 지연·슬리피지 체결 시뮬레이션 |
 | `execution` | `POST /api/orders/{orderId}/cancel-requests` | order 취소 요청 처리 |
 | `execution` | `POST /api/orders/{orderId}/cancel-confirmations` | broker/exchange cancel confirmation 반영 |
 | `post-trade` | `POST /api/post-trade/orders/{orderId}/trades` | execution order를 post-trade trade로 capture |

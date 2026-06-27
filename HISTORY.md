@@ -2,6 +2,47 @@
 
 프로젝트 slice 작업 이력을 한곳에 모아 기록한다.
 
+## execution
+
+### 2026.06.24 slice
+
+MVP execution simulator 범위의 ACK 지연, latest price 기반 지정가 체결 조건, 시장가 슬리피지를 하나의 실행 시뮬레이션 API로 연결.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/orders/{orderId}/execution-simulations` 추가
+  - `SENT` 주문이면 랜덤 20~200ms 지연 후 ACK 반영
+  - market-data의 latest price를 체결 기준 가격으로 조회
+  - MARKET BUY는 `latestPrice * (1 + slippageRate)`로 체결 가격 계산
+  - MARKET SELL은 `latestPrice * (1 - slippageRate)`로 체결 가격 계산
+  - LIMIT BUY는 `latestPrice <= limitPrice`, LIMIT SELL은 `latestPrice >= limitPrice`일 때만 체결
+  - `fillQuantity`에 따라 partial fill과 full fill 모두 지원
+- `ExecutionSimulationService` 추가
+  - controller는 request 검증 후 use case 하나만 호출
+  - 기존 `OrderAcknowledgementService`, `OrderFillService`, `MarketPriceService`를 조합
+- `ExecutionSimulationDelay` 포트와 `RandomExecutionSimulationDelay` 구현 추가
+  - 테스트에서는 실제 sleep 없이 고정 지연 구현으로 교체
+- `ExecutionSimulationRepository`, in-memory adapter 추가
+  - `simulationId` 기준 같은 요청의 ACK/fill 중복 반영 방지
+  - 같은 id를 다른 order 또는 payload에 재사용하면 conflict
+- service/controller/repository 테스트 추가
+- `docs/execution-api.md`, `docs/order-lifecycle-flow.md`, `docs/restful-api-strategy.md` 갱신
+
+#### 메모
+
+- 기존 ACK/fill API는 broker/exchange 이벤트 직접 입력, 테스트, 장애 복구 경계로 유지한다.
+- 지정가 주문은 limit price 경계를 침범하지 않도록 slippage를 적용하지 않고 latest price 조건만 평가한다.
+- 랜덤 지연은 MVP에서 동작을 명시적으로 관찰하기 위해 요청 스레드를 20~200ms 대기시킨다.
+  - 처리량이 중요해지면 scheduler 또는 message queue 기반 비동기 실행으로 교체한다.
+- 현재 in-memory idempotency는 `synchronized`와 simulation result 저장소에 의존한다.
+  - DB 영속화 단계에서는 `simulation_id` unique constraint와 transaction으로 대체한다.
+- 거래량 부족에 따른 미체결, 대량 주문 자동 분할, 확률 기반 broker reject는 후속 execution simulator 확장 범위다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+- 전체 빌드: `./gradlew build`
+
 ## post-trade
 
 ### 2026.06.23 slice

@@ -545,3 +545,109 @@ cancel confirmation의 `eventId`가 없으면 `400 Bad Request`를 반환한다.
   "message": "only ACKED or PARTIALLY_FILLED orders can be canceled"
 }
 ```
+
+## 9. Latest Price 기반 Execution Simulation
+
+```http
+POST /api/orders/{orderId}/execution-simulations
+Content-Type: application/json
+```
+
+기존 ACK와 fill API가 broker/exchange 이벤트를 직접 입력하는 경계라면, 이 API는 MVP execution simulator가 최신 시장 가격을 사용해 지연, ACK, 체결 가능 여부, 체결 가격을 한 번에 계산하는 운영형 경계다.
+
+### Request
+
+```json
+{
+  "simulationId": "00000000-0000-0000-0000-000000073001",
+  "fillQuantity": 4,
+  "slippageRate": 0.01
+}
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `simulationId` | required | 시뮬레이션 요청의 idempotency key |
+| `fillQuantity` | required | 이번 시뮬레이션에서 체결을 시도할 수량 |
+| `slippageRate` | required | 시장가에 적용할 슬리피지 비율. `0 <= rate < 1` |
+
+같은 `simulationId`, `orderId`, `fillQuantity`, `slippageRate`로 재요청하면 저장된 결과를 반환한다. 같은 `simulationId`를 다른 주문이나 다른 payload에 사용하면 `409 Conflict`를 반환한다.
+
+### Market Order Response
+
+기준 가격이 `55000`이고 BUY 시장가 주문에 `slippageRate=0.01`을 적용한 예시다.
+
+```json
+{
+  "simulationId": "00000000-0000-0000-0000-000000073001",
+  "orderId": "00000000-0000-0000-0000-000000072001",
+  "simulationStatus": "FILLED",
+  "referencePrice": 55000,
+  "fillPrice": 55550,
+  "requestedFillQuantity": 4,
+  "slippageRate": 0.01,
+  "delayMillis": 80,
+  "order": {
+    "orderId": "00000000-0000-0000-0000-000000072001",
+    "status": "PARTIALLY_FILLED",
+    "quantity": 10,
+    "filledQuantity": 4
+  }
+}
+```
+
+시장가 체결 가격은 다음처럼 계산한다.
+
+```text
+BUY fillPrice  = latestPrice * (1 + slippageRate)
+SELL fillPrice = latestPrice * (1 - slippageRate)
+```
+
+BUY는 기준가보다 비싸게, SELL은 기준가보다 싸게 체결되는 불리한 방향의 슬리피지를 적용한다.
+
+### Limit Order Not Filled Response
+
+BUY 지정가가 `55000`인데 latest price가 `56000`이면 가격 조건을 충족하지 못하므로 ACK까지만 반영하고 체결하지 않는다.
+
+```json
+{
+  "simulationId": "00000000-0000-0000-0000-000000073002",
+  "orderId": "00000000-0000-0000-0000-000000072002",
+  "simulationStatus": "NOT_FILLED",
+  "referencePrice": 56000,
+  "fillPrice": null,
+  "requestedFillQuantity": 10,
+  "slippageRate": 0,
+  "delayMillis": 120,
+  "order": {
+    "orderId": "00000000-0000-0000-0000-000000072002",
+    "status": "ACKED",
+    "quantity": 10,
+    "filledQuantity": 0
+  }
+}
+```
+
+지정가 체결 조건은 다음과 같다.
+
+| Side | 체결 조건 | 체결 가격 |
+| --- | --- | --- |
+| `BUY` | `latestPrice <= limitPrice` | latest price |
+| `SELL` | `latestPrice >= limitPrice` | latest price |
+
+지정가 주문에는 요청의 `slippageRate`를 체결 가격에 적용하지 않는다. 지정가가 허용한 가격 경계를 슬리피지 계산으로 침범하지 않기 위한 MVP 정책이다.
+
+## Simulation 상태 규칙
+
+| Order status | 처리 |
+| --- | --- |
+| `SENT` | 20~200ms 지연 후 ACK를 반영하고 체결 평가 |
+| `ACKED` | 지연 후 체결 평가 |
+| `PARTIALLY_FILLED` | 지연 후 남은 수량에 추가 체결 평가 |
+| 그 외 상태 | `409 Conflict` |
+
+최신 시장 가격이 없으면 `404 Not Found`를 반환한다. 요청 수량이 잔여 수량을 초과하면 기존 fill 규칙에 따라 `409 Conflict`를 반환한다.
+
+현재 랜덤 지연 구현은 요청 스레드를 실제로 20~200ms 대기시킨다. MVP 시뮬레이터에서는 지연을 눈에 보이게 재현하기 위한 선택이며, 처리량이 중요해지는 단계에서는 scheduler 또는 message queue 기반 비동기 실행으로 교체한다.
+
+기존 ACK/fill API는 외부 이벤트 직접 입력, 테스트, 장애 복구 경계로 계속 유지한다.
