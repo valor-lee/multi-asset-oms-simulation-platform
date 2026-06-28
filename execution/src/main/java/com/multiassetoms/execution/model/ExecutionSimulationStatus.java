@@ -2,5 +2,6 @@ package com.multiassetoms.execution.model;
 
 public enum ExecutionSimulationStatus {
     FILLED,
-    NOT_FILLED
+    NOT_FILLED,
+    REJECTED
 }

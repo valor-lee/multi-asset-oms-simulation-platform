@@ -32,6 +32,7 @@ class InMemoryExecutionSimulationRepositoryTest {
                 new BigDecimal("55550"),
                 new BigDecimal("4"),
                 new BigDecimal("0.01"),
+                BigDecimal.ZERO,
                 80L,
                 order(orderId)
         );

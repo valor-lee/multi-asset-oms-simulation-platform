@@ -11,6 +11,7 @@ public record ExecutionSimulationResult(
         BigDecimal fillPrice,
         BigDecimal requestedFillQuantity,
         BigDecimal slippageRate,
+        BigDecimal rejectRate,
         long delayMillis,
         Order order
 ) {
