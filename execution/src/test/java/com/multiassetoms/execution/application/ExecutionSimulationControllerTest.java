@@ -63,7 +63,8 @@ class ExecutionSimulationControllerTest {
                 simulationId,
                 new BigDecimal("4"),
                 new BigDecimal("0.01"),
-                BigDecimal.ZERO
+                BigDecimal.ZERO,
+                null
         )).thenReturn(new ExecutionSimulationResult(
                 simulationId,
                 orderId,
@@ -139,7 +140,8 @@ class ExecutionSimulationControllerTest {
                 simulationId,
                 new BigDecimal("4"),
                 BigDecimal.ZERO,
-                BigDecimal.ZERO
+                BigDecimal.ZERO,
+                null
         )).thenThrow(new ExecutionSimulationException(
                 "only SENT, ACKED, or PARTIALLY_FILLED orders can be simulated"
         ));
@@ -166,7 +168,8 @@ class ExecutionSimulationControllerTest {
                 simulationId,
                 new BigDecimal("4"),
                 BigDecimal.ZERO,
-                BigDecimal.ZERO
+                BigDecimal.ZERO,
+                null
         )).thenThrow(new MarketPriceNotFoundException("market price not found"));
 
         mockMvc.perform(post("/api/orders/{orderId}/execution-simulations", orderId)
@@ -211,7 +214,8 @@ class ExecutionSimulationControllerTest {
                 simulationId,
                 new BigDecimal("4"),
                 BigDecimal.ZERO,
-                new BigDecimal("1.0")
+                new BigDecimal("1.0"),
+                null
         )).thenReturn(new ExecutionSimulationResult(
                 simulationId,
                 orderId,
@@ -234,6 +238,69 @@ class ExecutionSimulationControllerTest {
                 .andExpect(jsonPath("$.fillPrice").doesNotExist())
                 .andExpect(jsonPath("$.rejectRate").value(1.0))
                 .andExpect(jsonPath("$.order.status").value("REJECTED"));
+    }
+
+    @Test
+    void simulatesPartialFillWithAvailableQuantity() throws Exception {
+        UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000072008");
+        UUID simulationId = UUID.fromString("00000000-0000-0000-0000-000000073008");
+        ExecutionSimulationRequest request = new ExecutionSimulationRequest(
+                simulationId,
+                new BigDecimal("8"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                new BigDecimal("3")
+        );
+        when(executionSimulationService.simulate(
+                orderId,
+                simulationId,
+                new BigDecimal("8"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                new BigDecimal("3")
+        )).thenReturn(new ExecutionSimulationResult(
+                simulationId,
+                orderId,
+                ExecutionSimulationStatus.FILLED,
+                new BigDecimal("55000"),
+                new BigDecimal("55000"),
+                new BigDecimal("8"),
+                new BigDecimal("3"),
+                new BigDecimal("3"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                80L,
+                orderWithFilledQuantity(orderId, new BigDecimal("3"))
+        ));
+
+        mockMvc.perform(post("/api/orders/{orderId}/execution-simulations", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requestedFillQuantity").value(8))
+                .andExpect(jsonPath("$.executedFillQuantity").value(3))
+                .andExpect(jsonPath("$.availableQuantity").value(3))
+                .andExpect(jsonPath("$.order.filledQuantity").value(3));
+    }
+
+    @Test
+    void returnsBadRequestWhenAvailableQuantityIsInvalid() throws Exception {
+        UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000072009");
+        UUID simulationId = UUID.fromString("00000000-0000-0000-0000-000000073009");
+
+        mockMvc.perform(post("/api/orders/{orderId}/execution-simulations", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "simulationId": "%s",
+                                  "fillQuantity": 4,
+                                  "slippageRate": 0,
+                                  "availableQuantity": -1
+                                }
+                                """.formatted(simulationId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("availableQuantity must be zero or greater"));
     }
 
     private Order order(UUID orderId) {
@@ -267,6 +334,24 @@ class ExecutionSimulationControllerTest {
                 null,
                 TimeInForce.DAY,
                 OrderStatus.REJECTED,
+                Instant.parse("2026-06-23T00:00:00Z"),
+                Instant.parse("2026-06-24T00:00:00Z")
+        );
+    }
+
+    private Order orderWithFilledQuantity(UUID orderId, BigDecimal filledQuantity) {
+        return new Order(
+                orderId,
+                UUID.fromString("00000000-0000-0000-0000-000000074003"),
+                "portfolio-1",
+                "005930",
+                OrderSide.BUY,
+                OrderType.MARKET,
+                new BigDecimal("10"),
+                filledQuantity,
+                null,
+                TimeInForce.DAY,
+                OrderStatus.PARTIALLY_FILLED,
                 Instant.parse("2026-06-23T00:00:00Z"),
                 Instant.parse("2026-06-24T00:00:00Z")
         );

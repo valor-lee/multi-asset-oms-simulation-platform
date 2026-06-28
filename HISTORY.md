@@ -6,6 +6,37 @@
 
 ### 2026.06.28 slice
 
+execution simulator가 거래량/유동성 부족으로 요청 수량보다 적게 체결되거나 미체결되는 상황을 재현할 수 있도록 확장.
+
+#### 이번 슬라이스에서 한 일
+
+- `POST /api/orders/{orderId}/execution-simulations` request에 선택 필드 `availableQuantity` 추가
+  - 생략하면 기존처럼 `fillQuantity` 전체를 체결 가능 수량으로 처리
+  - `0 <= availableQuantity` 범위만 허용
+- `ExecutionSimulationResult`에 `executedFillQuantity`, `availableQuantity` 추가
+  - `requestedFillQuantity`: 요청자가 이번 시뮬레이션에서 체결을 시도한 수량
+  - `executedFillQuantity`: 실제 fill event에 반영된 수량
+  - `availableQuantity`: 이번 시뮬레이션에서 시장에 있다고 가정한 체결 가능 수량
+- `ExecutionSimulationService`에 체결 가능 수량 제한 추가
+  - `availableQuantity < fillQuantity`이면 `availableQuantity`만 fill 반영
+  - `availableQuantity = 0`이면 가격 조건을 만족해도 `NOT_FILLED`로 저장하고 fill event는 생성하지 않음
+- service/controller 테스트 추가
+- `docs/execution-api.md`, `docs/order-lifecycle-flow.md` 갱신
+
+#### 메모
+
+- 이번 `availableQuantity`는 실제 order book 전체를 모델링하기 전 단계의 MVP 입력값이다.
+- 실제 시장에서는 호가별 잔량, 주문 크기, 매칭 우선순위에 따라 여러 가격에 나뉘어 체결될 수 있다.
+- 현재 구현은 그 복잡도를 단순화해 “이번 시뮬레이션에서 체결 가능한 총 수량”만 받는다.
+- `simulationStatus=FILLED`는 이번 시뮬레이션에서 fill event가 발생했다는 의미이며, order 전체가 전량 체결됐는지는 `order.status`와 `order.filledQuantity`로 판단한다.
+
+#### 검증
+
+- 실행 테스트: `./gradlew :execution:test`
+- 전체 빌드: `./gradlew build`
+
+### 2026.06.28 slice
+
 execution simulator가 성공 체결 경로뿐 아니라 broker/exchange reject 경로도 재현할 수 있도록 확장.
 
 #### 이번 슬라이스에서 한 일

@@ -5,7 +5,7 @@ flowchart TD
     C -->|REJECTED| C1[OrderIntent RISK_REJECTED]
 
     D --> E[Order Submission]
-    E --> X[Execution Simulation<br/>Delay / Reject / Latest Price / Slippage]
+    E --> X[Execution Simulation<br/>Delay / Reject / Liquidity / Price / Slippage]
     X --> F[Broker / Exchange ACK]
     X --> H[Reject 반영]
     X --> G[Fill 반영]
@@ -33,6 +33,7 @@ flowchart TD
     V[Market Data Latest Price] --> U
 
     G --> W[Audit Trail / Replay]
+    H --> W
     E --> W
     F --> W
     I --> W

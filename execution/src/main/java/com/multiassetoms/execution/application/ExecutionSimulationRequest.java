@@ -9,7 +9,8 @@ public record ExecutionSimulationRequest(
         UUID simulationId,
         BigDecimal fillQuantity,
         BigDecimal slippageRate,
-        BigDecimal rejectRate
+        BigDecimal rejectRate,
+        BigDecimal availableQuantity
 ) {
 
     public ExecutionSimulationRequest(
@@ -17,7 +18,16 @@ public record ExecutionSimulationRequest(
             BigDecimal fillQuantity,
             BigDecimal slippageRate
     ) {
-        this(simulationId, fillQuantity, slippageRate, BigDecimal.ZERO);
+        this(simulationId, fillQuantity, slippageRate, BigDecimal.ZERO, null);
+    }
+
+    public ExecutionSimulationRequest(
+            UUID simulationId,
+            BigDecimal fillQuantity,
+            BigDecimal slippageRate,
+            BigDecimal rejectRate
+    ) {
+        this(simulationId, fillQuantity, slippageRate, rejectRate, null);
     }
 
     public UUID requireSimulationId() {
@@ -56,5 +66,17 @@ public record ExecutionSimulationRequest(
             );
         }
         return rejectRate;
+    }
+
+    public BigDecimal availableQuantityOrNull() {
+        if (availableQuantity == null) {
+            return null;
+        }
+        if (availableQuantity.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ExecutionRequestException(
+                    "availableQuantity must be zero or greater"
+            );
+        }
+        return availableQuantity;
     }
 }

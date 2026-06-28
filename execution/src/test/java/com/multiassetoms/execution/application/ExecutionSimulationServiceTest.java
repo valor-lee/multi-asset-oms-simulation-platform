@@ -201,6 +201,62 @@ class ExecutionSimulationServiceTest {
     }
 
     @Test
+    void limitsFillQuantityToAvailableQuantity() {
+        Order order = order(OrderStatus.ACKED, OrderSide.BUY, OrderType.MARKET, null);
+        orderRepository.save(order);
+        marketPriceService.upsertLatestPrice(
+                order.instrumentId(),
+                new BigDecimal("55000"),
+                null
+        );
+
+        ExecutionSimulationResult result = service.simulate(
+                order.orderId(),
+                UUID.fromString("00000000-0000-0000-0000-000000071009"),
+                new BigDecimal("8"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                new BigDecimal("3")
+        );
+
+        assertEquals(ExecutionSimulationStatus.FILLED, result.simulationStatus());
+        assertEquals(new BigDecimal("8"), result.requestedFillQuantity());
+        assertEquals(new BigDecimal("3"), result.executedFillQuantity());
+        assertEquals(new BigDecimal("3"), result.availableQuantity());
+        assertEquals(new BigDecimal("3"), result.order().filledQuantity());
+        assertEquals(OrderStatus.PARTIALLY_FILLED, result.order().status());
+    }
+
+    @Test
+    void leavesOrderAckedWhenAvailableQuantityIsZero() {
+        Order order = order(OrderStatus.SENT, OrderSide.BUY, OrderType.MARKET, null);
+        orderRepository.save(order);
+        marketPriceService.upsertLatestPrice(
+                order.instrumentId(),
+                new BigDecimal("55000"),
+                null
+        );
+
+        ExecutionSimulationResult result = service.simulate(
+                order.orderId(),
+                UUID.fromString("00000000-0000-0000-0000-000000071010"),
+                new BigDecimal("8"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
+        );
+
+        assertEquals(ExecutionSimulationStatus.NOT_FILLED, result.simulationStatus());
+        assertEquals(new BigDecimal("8"), result.requestedFillQuantity());
+        assertEquals(BigDecimal.ZERO, result.executedFillQuantity());
+        assertEquals(BigDecimal.ZERO, result.availableQuantity());
+        assertNull(result.fillPrice());
+        assertEquals(OrderStatus.ACKED, result.order().status());
+        assertEquals(BigDecimal.ZERO, result.order().filledQuantity());
+        assertEquals(0, fillExecutionRepository.findByOrderId(order.orderId()).size());
+    }
+
+    @Test
     void rejectsSimulationIdReusedWithDifferentPayload() {
         Order order = order(OrderStatus.ACKED, OrderSide.BUY, OrderType.MARKET, null);
         orderRepository.save(order);

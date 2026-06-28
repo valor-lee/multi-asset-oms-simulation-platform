@@ -61,20 +61,45 @@ public class ExecutionSimulationService {
      * 5. fill 처리
      * 6. 결과 저장
      */
-    public synchronized ExecutionSimulationResult simulate(
+    public ExecutionSimulationResult simulate(
             UUID orderId,
             UUID simulationId,
             BigDecimal fillQuantity,
             BigDecimal slippageRate,
             BigDecimal rejectRate
     ) {
-        validateRequest(orderId, simulationId, fillQuantity, slippageRate, rejectRate);
+        return simulate(orderId, simulationId, fillQuantity, slippageRate, rejectRate, null);
+    }
+
+    public synchronized ExecutionSimulationResult simulate(
+            UUID orderId,
+            UUID simulationId,
+            BigDecimal fillQuantity,
+            BigDecimal slippageRate,
+            BigDecimal rejectRate,
+            BigDecimal availableQuantity
+    ) {
+        validateRequest(
+                orderId,
+                simulationId,
+                fillQuantity,
+                slippageRate,
+                rejectRate,
+                availableQuantity
+        );
 
         ExecutionSimulationResult existingResult = simulationRepository
                 .findBySimulationId(simulationId)
                 .orElse(null);
         if (existingResult != null) {
-            return existingResult(orderId, fillQuantity, slippageRate, rejectRate, existingResult);
+            return existingResult(
+                    orderId,
+                    fillQuantity,
+                    slippageRate,
+                    rejectRate,
+                    availableQuantity,
+                    existingResult
+            );
         }
 
         Order order = findOrder(orderId);
@@ -90,6 +115,8 @@ public class ExecutionSimulationService {
                     null,
                     null,
                     fillQuantity,
+                    BigDecimal.ZERO,
+                    availableQuantity,
                     slippageRate,
                     rejectRate,
                     delayMillis,
@@ -109,6 +136,26 @@ public class ExecutionSimulationService {
                     referencePrice,
                     null,
                     fillQuantity,
+                    BigDecimal.ZERO,
+                    availableQuantity,
+                    slippageRate,
+                    rejectRate,
+                    delayMillis,
+                    acknowledgedOrder
+            ));
+        }
+
+        BigDecimal executableQuantity = executableQuantity(fillQuantity, availableQuantity);
+        if (executableQuantity.compareTo(BigDecimal.ZERO) == 0) {
+            return simulationRepository.save(new ExecutionSimulationResult(
+                    simulationId,
+                    orderId,
+                    ExecutionSimulationStatus.NOT_FILLED,
+                    referencePrice,
+                    null,
+                    fillQuantity,
+                    BigDecimal.ZERO,
+                    availableQuantity,
                     slippageRate,
                     rejectRate,
                     delayMillis,
@@ -120,7 +167,7 @@ public class ExecutionSimulationService {
         Order filledOrder = fillService.fill(
                 orderId,
                 simulationId,
-                fillQuantity,
+                executableQuantity,
                 fillPrice
         );
         return simulationRepository.save(new ExecutionSimulationResult(
@@ -130,6 +177,8 @@ public class ExecutionSimulationService {
                 referencePrice,
                 fillPrice,
                 fillQuantity,
+                executableQuantity,
+                availableQuantity,
                 slippageRate,
                 rejectRate,
                 delayMillis,
@@ -142,7 +191,8 @@ public class ExecutionSimulationService {
             UUID simulationId,
             BigDecimal fillQuantity,
             BigDecimal slippageRate,
-            BigDecimal rejectRate
+            BigDecimal rejectRate,
+            BigDecimal availableQuantity
     ) {
         if (orderId == null) {
             throw new ExecutionSimulationException("orderId is required");
@@ -167,6 +217,11 @@ public class ExecutionSimulationService {
                     "rejectRate must be zero or greater and less than or equal to one"
             );
         }
+        if (availableQuantity != null && availableQuantity.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ExecutionSimulationException(
+                    "availableQuantity must be zero or greater"
+            );
+        }
     }
 
     private ExecutionSimulationResult existingResult(
@@ -174,6 +229,7 @@ public class ExecutionSimulationService {
             BigDecimal fillQuantity,
             BigDecimal slippageRate,
             BigDecimal rejectRate,
+            BigDecimal availableQuantity,
             ExecutionSimulationResult result
     ) {
         if (!result.orderId().equals(orderId)) {
@@ -181,12 +237,20 @@ public class ExecutionSimulationService {
         }
         if (result.requestedFillQuantity().compareTo(fillQuantity) != 0
                 || result.slippageRate().compareTo(slippageRate) != 0
-                || result.rejectRate().compareTo(rejectRate) != 0) {
+                || result.rejectRate().compareTo(rejectRate) != 0
+                || !sameNullableQuantity(result.availableQuantity(), availableQuantity)) {
             throw new ExecutionSimulationException(
                     "simulationId was already used with another request"
             );
         }
         return result;
+    }
+
+    private boolean sameNullableQuantity(BigDecimal left, BigDecimal right) {
+        if (left == null || right == null) {
+            return left == right;
+        }
+        return left.compareTo(right) == 0;
     }
 
     private Order findOrder(UUID orderId) {
@@ -236,6 +300,16 @@ public class ExecutionSimulationService {
             return referencePrice.compareTo(order.limitPrice()) <= 0;
         }
         return referencePrice.compareTo(order.limitPrice()) >= 0;
+    }
+
+    private BigDecimal executableQuantity(
+            BigDecimal requestedFillQuantity,
+            BigDecimal availableQuantity
+    ) {
+        if (availableQuantity == null) {
+            return requestedFillQuantity;
+        }
+        return requestedFillQuantity.min(availableQuantity);
     }
 
     private BigDecimal simulatedFillPrice(
